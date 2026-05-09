@@ -7,6 +7,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius, Shadows, Typography } from '../../constants/theme';
 import { Text } from '../ui/Text';
 import { Badge } from '../ui/Badge';
@@ -69,7 +70,7 @@ export function ListingCard({
           {isVerified && <Badge label="Verified" variant="verified" />}
           {isLocked && (
             <View style={styles.lockBadge}>
-              <Text style={styles.lockIcon}>🔒</Text>
+              <Ionicons name="lock-closed" size={14} color={Colors.onSurface} />
             </View>
           )}
         </View>
@@ -89,9 +90,9 @@ export function ListingCard({
         </Text>
 
         <View style={styles.statsRow}>
-          <StatPill icon="🛏" value={`${bedrooms} bd`} />
-          <StatPill icon="🚿" value={`${bathrooms} ba`} />
-          <StatPill icon="🏠" value={formatType(propertyType)} />
+          <StatPill iconName="bed-outline" value={`${bedrooms} bd`} />
+          <StatPill iconName="water-outline" value={`${bathrooms} ba`} />
+          <StatPill iconName="home-outline" value={formatType(propertyType)} />
         </View>
 
         <View style={styles.priceRow}>
@@ -110,10 +111,10 @@ export function ListingCard({
   );
 }
 
-function StatPill({ icon, value }: { icon: string; value: string }) {
+function StatPill({ iconName, value }: { iconName: React.ComponentProps<typeof Ionicons>['name']; value: string }) {
   return (
     <View style={styles.statPill}>
-      <Text style={styles.statIcon}>{icon}</Text>
+      <Ionicons name={iconName} size={13} color={Colors.onSurfaceVariant} />
       <Text variant="labelSmall" style={styles.statText}>{value}</Text>
     </View>
   );

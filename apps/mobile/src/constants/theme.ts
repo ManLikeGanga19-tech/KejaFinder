@@ -69,8 +69,8 @@ export const Colors = {
 } as const;
 
 export const Typography = {
-  fontHeadline: 'Manrope',
-  fontBody: 'Inter',
+  fontHeadline: 'System',
+  fontBody: 'System',
 
   size: {
     xs: 10,

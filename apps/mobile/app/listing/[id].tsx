@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius, Shadows, Typography, Layout } from '../../src/constants/theme';
 import { Text } from '../../src/components/ui/Text';
 import { Button } from '../../src/components/ui/Button';
@@ -91,10 +92,14 @@ export default function ListingDetailScreen() {
           />
           <View style={[styles.navBar, { paddingTop: insets.top + 8 }]}>
             <TouchableOpacity style={styles.navBtn} onPress={() => router.back()}>
-              <Text style={styles.navIcon}>←</Text>
+              <Ionicons name="arrow-back" size={20} color={Colors.onSurface} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.navBtn} onPress={handleSave}>
-              <Text style={styles.navIcon}>{listing.isSavedByMe ? '❤️' : '🤍'}</Text>
+              <Ionicons
+                name={listing.isSavedByMe ? 'heart' : 'heart-outline'}
+                size={20}
+                color={listing.isSavedByMe ? Colors.error : Colors.onSurface}
+              />
             </TouchableOpacity>
           </View>
           {listing.photos.length > 1 && (
@@ -125,10 +130,10 @@ export default function ListingDetailScreen() {
           </View>
 
           <View style={styles.statsGrid}>
-            <StatBlock icon="🛏" value={`${listing.bedrooms}`} label="Beds" />
-            <StatBlock icon="🚿" value={`${listing.bathrooms}`} label="Baths" />
-            {listing.areaSqft ? <StatBlock icon="📐" value={`${listing.areaSqft}`} label="sqft" /> : null}
-            <StatBlock icon="🚗" value={`${listing.parking}`} label="Parking" />
+            <StatBlock iconName="bed-outline" value={`${listing.bedrooms}`} label="Beds" />
+            <StatBlock iconName="water-outline" value={`${listing.bathrooms}`} label="Baths" />
+            {listing.areaSqft ? <StatBlock iconName="resize-outline" value={`${listing.areaSqft}`} label="sqft" /> : null}
+            <StatBlock iconName="car-outline" value={`${listing.parking}`} label="Parking" />
           </View>
 
           <Divider />
@@ -140,8 +145,9 @@ export default function ListingDetailScreen() {
             </Text>
             {listing.isLocked && !isUnlocked && (
               <View style={styles.lockedHint}>
+                <Ionicons name="lock-closed" size={16} color={Colors.primary} style={{ marginRight: Spacing[2] }} />
                 <Text style={styles.lockedHintText}>
-                  🔒 Full description, exact address, and agent contacts revealed after unlock
+                  Full description, exact address, and agent contacts revealed after unlock
                 </Text>
               </View>
             )}
@@ -167,7 +173,8 @@ export default function ListingDetailScreen() {
               </View>
               {isUnlocked && listing.agent.phone && (
                 <TouchableOpacity style={styles.callBtn} onPress={() => Linking.openURL(`tel:${listing.agent.phone}`)}>
-                  <Text style={styles.callBtnText}>📞 Call</Text>
+                  <Ionicons name="call-outline" size={14} color={Colors.success} />
+                  <Text style={styles.callBtnText}>Call</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -182,7 +189,8 @@ export default function ListingDetailScreen() {
                 </View>
                 {listing.caretakerPhone && (
                   <TouchableOpacity style={styles.callBtn} onPress={() => Linking.openURL(`tel:${listing.caretakerPhone}`)}>
-                    <Text style={styles.callBtnText}>📞 Call</Text>
+                    <Ionicons name="call-outline" size={14} color={Colors.success} />
+                    <Text style={styles.callBtnText}>Call</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -195,11 +203,13 @@ export default function ListingDetailScreen() {
         {isUnlocked ? (
           <View style={styles.unlockedBar}>
             <View style={styles.unlockedBadge}>
-              <Text style={styles.unlockedBadgeText}>✓ Unlocked</Text>
+              <Ionicons name="checkmark-circle" size={14} color={Colors.success} />
+              <Text style={styles.unlockedBadgeText}>Unlocked</Text>
             </View>
             {listing.agent.phone && (
               <TouchableOpacity style={styles.ctaCallBtn} onPress={() => Linking.openURL(`tel:${listing.agent.phone}`)}>
-                <Text style={styles.ctaCallText}>📞 Call agent</Text>
+                <Ionicons name="call" size={16} color={Colors.white} />
+                <Text style={styles.ctaCallText}>Call agent</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -210,7 +220,8 @@ export default function ListingDetailScreen() {
               <Text variant="titleSmall">KES {listing.unlockPriceKes} via M-Pesa</Text>
             </View>
             <TouchableOpacity style={styles.unlockBtn} activeOpacity={0.85} onPress={() => router.push(`/payment/${id}` as any)}>
-              <Text style={styles.unlockBtnText}>🔓 Unlock now</Text>
+              <Ionicons name="lock-open" size={16} color={Colors.white} />
+              <Text style={styles.unlockBtnText}>Unlock now</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -219,10 +230,10 @@ export default function ListingDetailScreen() {
   );
 }
 
-function StatBlock({ icon, value, label }: { icon: string; value: string; label: string }) {
+function StatBlock({ iconName, value, label }: { iconName: React.ComponentProps<typeof Ionicons>['name']; value: string; label: string }) {
   return (
     <View style={styles.statBlock}>
-      <Text style={styles.statIcon}>{icon}</Text>
+      <Ionicons name={iconName} size={20} color={Colors.primary} style={{ marginBottom: 4 }} />
       <Text variant="titleMedium">{value}</Text>
       <Text variant="labelSmall" color={Colors.onSurfaceVariant}>{label}</Text>
     </View>
@@ -289,6 +300,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primaryFixed,
     borderRadius: BorderRadius.lg,
     padding: Spacing[3], marginTop: Spacing[2],
+    flexDirection: 'row', alignItems: 'center',
   },
   lockedHintText: {
     fontFamily: Typography.fontBody, fontSize: Typography.size.sm,
@@ -313,6 +325,7 @@ const styles = StyleSheet.create({
   },
   agentInfo: { flex: 1, gap: 2 },
   callBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: Colors.successContainer,
     paddingHorizontal: Spacing[3], paddingVertical: Spacing[2],
     borderRadius: BorderRadius.full,
@@ -333,6 +346,7 @@ const styles = StyleSheet.create({
   lockedBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing[3] },
   lockedBarInfo: { flex: 1, gap: 2 },
   unlockBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing[2],
     backgroundColor: Colors.primary,
     paddingHorizontal: Spacing[6],
     paddingVertical: Spacing[4],
@@ -345,6 +359,7 @@ const styles = StyleSheet.create({
   },
   unlockedBar: { flexDirection: 'row', alignItems: 'center', gap: Spacing[3] },
   unlockedBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: Colors.successContainer,
     paddingHorizontal: Spacing[3], paddingVertical: Spacing[2],
     borderRadius: BorderRadius.full,
@@ -354,10 +369,11 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weight.bold, color: Colors.success,
   },
   ctaCallBtn: {
-    flex: 1, backgroundColor: Colors.primary,
+    flex: 1, flexDirection: 'row', gap: Spacing[2],
+    backgroundColor: Colors.primary,
     paddingVertical: Spacing[4],
     borderRadius: BorderRadius.xl,
-    alignItems: 'center', ...Shadows.primary,
+    alignItems: 'center', justifyContent: 'center', ...Shadows.primary,
   },
   ctaCallText: {
     fontFamily: Typography.fontBody, fontSize: Typography.size.sm,

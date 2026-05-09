@@ -1,19 +1,26 @@
 import { Tabs } from 'expo-router';
-import { View, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, BorderRadius, Shadows, Spacing } from '../../src/constants/theme';
-import { Text } from '../../src/components/ui/Text';
 
-const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
-  index: { active: '🏠', inactive: '🏠' },
-  explore: { active: '🗺️', inactive: '🗺️' },
-  saved: { active: '❤️', inactive: '🤍' },
-  notifications: { active: '🔔', inactive: '🔔' },
-  profile: { active: '👤', inactive: '👤' },
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const TAB_ICONS: Record<string, { active: IconName; inactive: IconName }> = {
+  index: { active: 'home', inactive: 'home-outline' },
+  explore: { active: 'compass', inactive: 'compass-outline' },
+  saved: { active: 'heart', inactive: 'heart-outline' },
+  notifications: { active: 'notifications', inactive: 'notifications-outline' },
+  profile: { active: 'person', inactive: 'person-outline' },
 };
+
+const TAB_BAR_HEIGHT = 60;
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  // System gesture/nav bar offset — Android often reports a bottom inset; use it.
+  // Floor at 8px so the bar still has breathing room on devices reporting 0.
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
 
   return (
     <Tabs
@@ -22,18 +29,20 @@ export default function TabsLayout() {
         tabBarShowLabel: true,
         tabBarStyle: [
           styles.tabBar,
-          { paddingBottom: insets.bottom + Spacing[2] },
+          {
+            height: TAB_BAR_HEIGHT + bottomPadding,
+            paddingBottom: bottomPadding,
+          },
         ],
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.onSurfaceVariant,
         tabBarLabelStyle: styles.tabLabel,
-        tabBarIcon: ({ focused }) => {
-          const icons = TAB_ICONS[route.name] ?? { active: '●', inactive: '○' };
+        tabBarIcon: ({ focused, color, size }) => {
+          const icons = TAB_ICONS[route.name] ?? { active: 'ellipse', inactive: 'ellipse-outline' };
+          const name = focused ? icons.active : icons.inactive;
           return (
             <View style={[styles.iconContainer, focused && styles.iconContainerActive]}>
-              <Text style={{ fontSize: 20 }}>
-                {focused ? icons.active : icons.inactive}
-              </Text>
+              <Ionicons name={name} size={size ?? 22} color={color} />
             </View>
           );
         },
@@ -54,13 +63,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
     borderTopLeftRadius: BorderRadius.bottomTab,
     borderTopRightRadius: BorderRadius.bottomTab,
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
     paddingTop: Spacing[2],
     paddingHorizontal: Spacing[4],
-    height: 80,
     ...Shadows.lg,
     shadowOffset: { width: 0, height: -8 },
   },

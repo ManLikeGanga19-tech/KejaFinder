@@ -6,6 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius, Shadows, Typography, Layout } from '../../src/constants/theme';
 import { Text } from '../../src/components/ui/Text';
 import { apiFetch } from '../../src/lib/api';
@@ -84,7 +85,9 @@ export default function AuthScreen() {
         keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
       >
         <View style={styles.brand}>
-          <View style={styles.logoMark}><Text style={{ fontSize: 40 }}>🏠</Text></View>
+          <View style={styles.logoMark}>
+            <Ionicons name="home" size={40} color={Colors.white} />
+          </View>
           <Text variant="headlineLarge" style={styles.brandName}>KejaFinder</Text>
           <Text variant="bodyMedium" style={styles.tagline}>Find your perfect home in Kenya</Text>
         </View>

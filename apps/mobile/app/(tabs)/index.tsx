@@ -9,6 +9,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius, Shadows, Typography, Layout } from '../../src/constants/theme';
 import { Text } from '../../src/components/ui/Text';
 import { ListingCard } from '../../src/components/listing/ListingCard';
@@ -70,7 +71,7 @@ export default function HomeScreen() {
             <Text variant="headlineMedium">Find your home</Text>
           </View>
           <TouchableOpacity style={styles.notifButton} onPress={() => router.push('/(tabs)/notifications' as any)}>
-            <Text style={styles.notifIcon}>🔔</Text>
+            <Ionicons name="notifications-outline" size={22} color={Colors.onSurface} />
           </TouchableOpacity>
         </View>
 
@@ -79,7 +80,7 @@ export default function HomeScreen() {
           onPress={() => router.push('/(tabs)/explore' as any)}
           activeOpacity={0.85}
         >
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Ionicons name="search-outline" size={20} color={Colors.onSurfaceVariant} />
           <Text variant="bodyMedium" color={Colors.onSurfaceVariant}>
             Search by area, property type...
           </Text>
@@ -160,7 +161,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   scroll: { flex: 1 },
-  scrollContent: { paddingBottom: Layout.bottomTabHeight + Spacing[8] },
+  scrollContent: { paddingBottom: Spacing[8] },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

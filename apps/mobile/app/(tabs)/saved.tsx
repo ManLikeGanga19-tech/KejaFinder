@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: Layout.screenPaddingH,
-    paddingBottom: Layout.bottomTabHeight + Spacing[8],
+    paddingBottom: Spacing[8],
   },
   empty: { alignItems: 'center', paddingVertical: Spacing[12] },
 });

@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius, Shadows, Typography, Layout } from '../../src/constants/theme';
 import { Text } from '../../src/components/ui/Text';
 import { apiFetch } from '../../src/lib/api';
@@ -91,7 +92,7 @@ export default function PaymentScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <View style={styles.dragHandle} />
         <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
-          <Text style={styles.closeBtnText}>✕</Text>
+          <Ionicons name="close" size={20} color={Colors.onSurface} />
         </TouchableOpacity>
       </View>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 32 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -113,14 +114,17 @@ export default function PaymentScreen() {
               <Text variant="bodyMedium" color={Colors.onSurfaceVariant}>One-time unlock fee · No subscription</Text>
             </View>
             <View style={styles.benefitsList}>
-              {[
-                '📍 Exact address and floor/building details',
-                '📞 Agent phone number and email',
-                '🏠 Caretaker contacts for viewing',
-                '📝 Full property description',
-                '🔓 Unlocked forever — no expiry',
-              ].map(item => (
-                <View key={item} style={styles.benefitItem}><Text variant="bodyMedium">{item}</Text></View>
+              {([
+                ['location-outline', 'Exact address and floor/building details'],
+                ['call-outline', 'Agent phone number and email'],
+                ['home-outline', 'Caretaker contacts for viewing'],
+                ['document-text-outline', 'Full property description'],
+                ['lock-open-outline', 'Unlocked forever — no expiry'],
+              ] as const).map(([icon, text]) => (
+                <View key={text} style={styles.benefitItem}>
+                  <Ionicons name={icon} size={18} color={Colors.primary} style={{ marginRight: Spacing[3] }} />
+                  <Text variant="bodyMedium" style={{ flex: 1 }}>{text}</Text>
+                </View>
               ))}
             </View>
             <View style={styles.inputGroup}>
@@ -137,7 +141,10 @@ export default function PaymentScreen() {
             <TouchableOpacity style={[styles.payBtn, submitting && styles.payBtnDisabled]} onPress={handlePay} disabled={submitting} activeOpacity={0.85}>
               {submitting ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.payBtnText}>Pay KES {listing?.unlockPriceKes ?? 499} with M-Pesa</Text>}
             </TouchableOpacity>
-            <Text variant="bodySmall" color={Colors.onSurfaceVariant} style={styles.secureNote}>🔒 Secured by Safaricom Daraja · Payments are non-refundable</Text>
+            <View style={styles.secureNote}>
+              <Ionicons name="shield-checkmark-outline" size={14} color={Colors.onSurfaceVariant} style={{ marginRight: 4 }} />
+              <Text variant="bodySmall" color={Colors.onSurfaceVariant}>Secured by Safaricom Daraja · Payments are non-refundable</Text>
+            </View>
           </View>
         )}
 
@@ -155,7 +162,11 @@ export default function PaymentScreen() {
         {(step === 'success' || step === 'failed') && (
           <View style={styles.centeredStep}>
             <View style={[styles.resultIcon, step === 'success' ? styles.resultIconSuccess : styles.resultIconFail]}>
-              <Text style={styles.resultIconText}>{step === 'success' ? '✓' : '✗'}</Text>
+              <Ionicons
+                name={step === 'success' ? 'checkmark' : 'close'}
+                size={36}
+                color={step === 'success' ? Colors.success : Colors.error}
+              />
             </View>
             <Text variant="titleLarge" style={{ textAlign: 'center' }}>
               {step === 'success' ? 'Payment confirmed!' : 'Payment not completed'}
@@ -199,7 +210,7 @@ const styles = StyleSheet.create({
   mpesaLogoText: { fontFamily: Typography.fontHeadline, fontSize: Typography.size.base, fontWeight: Typography.weight.extrabold, color: Colors.mpesa, letterSpacing: 2 },
   amount: { letterSpacing: -1 },
   benefitsList: { backgroundColor: Colors.primaryFixed, borderRadius: BorderRadius.xl, padding: Spacing[4], gap: Spacing[3] },
-  benefitItem: { flexDirection: 'row', alignItems: 'center' },
+  benefitItem: { flexDirection: 'row', alignItems: 'center', gap: 0 },
   inputGroup: { gap: Spacing[2] },
   phoneInput: {
     backgroundColor: Colors.surfaceContainerLow,
@@ -212,7 +223,7 @@ const styles = StyleSheet.create({
   payBtn: { backgroundColor: Colors.primary, borderRadius: BorderRadius.xl, paddingVertical: Spacing[5], alignItems: 'center', ...Shadows.primary },
   payBtnDisabled: { opacity: 0.6 },
   payBtnText: { fontFamily: Typography.fontBody, fontSize: Typography.size.base, fontWeight: Typography.weight.bold, color: Colors.white },
-  secureNote: { textAlign: 'center' },
+  secureNote: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   centeredStep: { alignItems: 'center', paddingVertical: Spacing[6], gap: Spacing[4] },
   resultIcon: { width: 72, height: 72, borderRadius: BorderRadius.full, alignItems: 'center', justifyContent: 'center' },
   resultIconSuccess: { backgroundColor: Colors.successContainer },

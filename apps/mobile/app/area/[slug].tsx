@@ -4,7 +4,10 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius, Shadows, Typography, Layout } from '../../src/constants/theme';
+
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 import { Text } from '../../src/components/ui/Text';
 import { ListingCard } from '../../src/components/listing/ListingCard';
 import { apiFetch } from '../../src/lib/api';
@@ -22,9 +25,14 @@ interface Area {
   amenities: AmenityGroup[];
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  healthcare: '🏥', education: '🎓', retail: '🛒',
-  transport: '🚌', recreation: '🌳', finance: '🏦', dining: '🍽️',
+const CATEGORY_ICONS: Record<string, IoniconName> = {
+  healthcare: 'medkit-outline',
+  education: 'school-outline',
+  retail: 'cart-outline',
+  transport: 'bus-outline',
+  recreation: 'leaf-outline',
+  finance: 'cash-outline',
+  dining: 'restaurant-outline',
 };
 
 export default function AreaScreen() {
@@ -60,7 +68,7 @@ export default function AreaScreen() {
     <View style={styles.root}>
       <View style={[styles.heroHeader, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backBtnText}>←</Text>
+          <Ionicons name="arrow-back" size={20} color={Colors.onSurface} />
         </TouchableOpacity>
         <View style={styles.heroTitle}>
           <Text variant="headlineMedium" style={{ letterSpacing: -0.5 }}>{area.name}</Text>
@@ -136,7 +144,7 @@ export default function AreaScreen() {
             ) : area.amenities.map(group => (
               <View key={group.category} style={styles.amenityGroup}>
                 <View style={styles.amenityGroupHeader}>
-                  <Text style={{ fontSize: 18 }}>{CATEGORY_ICONS[group.category] ?? '📍'}</Text>
+                  <Ionicons name={CATEGORY_ICONS[group.category] ?? 'location-outline'} size={18} color={Colors.primary} />
                   <Text variant="titleSmall">{group.category.charAt(0).toUpperCase() + group.category.slice(1)} ({group.items.length})</Text>
                 </View>
                 {group.items.map(item => (

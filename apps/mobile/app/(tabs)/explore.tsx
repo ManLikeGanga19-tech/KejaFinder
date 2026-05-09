@@ -89,6 +89,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: Layout.screenPaddingH,
     paddingTop: Spacing[5],
-    paddingBottom: Layout.bottomTabHeight + Spacing[8],
+    paddingBottom: Spacing[8],
   },
 });

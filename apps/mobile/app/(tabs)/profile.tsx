@@ -2,7 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius, Shadows, Layout } from '../../src/constants/theme';
+
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
 import { Text } from '../../src/components/ui/Text';
 import { apiFetch } from '../../src/lib/api';
 
@@ -59,25 +62,25 @@ export default function ProfileScreen() {
         )}
 
         <View style={styles.menu}>
-          <MenuRow icon="❤️" label="Saved listings" onPress={() => router.push('/(tabs)/saved' as any)} />
-          <MenuRow icon="🔓" label="Unlocked listings" onPress={() => {}} />
-          <MenuRow icon="💳" label="Payment history" onPress={() => {}} />
-          <MenuRow icon="🏢" label="Become an agent" onPress={() => {}} />
-          <MenuRow icon="⚙️" label="Settings" onPress={() => {}} />
-          <MenuRow icon="📜" label="Terms & Privacy" onPress={() => {}} />
-          {user && <MenuRow icon="🚪" label="Sign out" onPress={logout} />}
+          <MenuRow iconName="heart-outline" label="Saved listings" onPress={() => router.push('/(tabs)/saved' as any)} />
+          <MenuRow iconName="lock-open-outline" label="Unlocked listings" onPress={() => {}} />
+          <MenuRow iconName="card-outline" label="Payment history" onPress={() => {}} />
+          <MenuRow iconName="business-outline" label="Become an agent" onPress={() => {}} />
+          <MenuRow iconName="settings-outline" label="Settings" onPress={() => {}} />
+          <MenuRow iconName="document-text-outline" label="Terms & Privacy" onPress={() => {}} />
+          {user && <MenuRow iconName="log-out-outline" label="Sign out" onPress={logout} />}
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function MenuRow({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) {
+function MenuRow({ iconName, label, onPress }: { iconName: IconName; label: string; onPress: () => void }) {
   return (
     <TouchableOpacity style={styles.menuRow} onPress={onPress} activeOpacity={0.7}>
-      <Text style={{ fontSize: 22 }}>{icon}</Text>
+      <Ionicons name={iconName} size={22} color={Colors.primary} />
       <Text variant="bodyLarge" style={{ flex: 1 }}>{label}</Text>
-      <Text style={{ fontSize: 18, color: Colors.onSurfaceVariant }}>›</Text>
+      <Ionicons name="chevron-forward" size={18} color={Colors.onSurfaceVariant} />
     </TouchableOpacity>
   );
 }
@@ -85,7 +88,7 @@ function MenuRow({ icon, label, onPress }: { icon: string; label: string; onPres
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   scrollContent: {
-    paddingBottom: Layout.bottomTabHeight + Spacing[8],
+    paddingBottom: Spacing[8],
   },
   header: {
     paddingHorizontal: Layout.screenPaddingH,
