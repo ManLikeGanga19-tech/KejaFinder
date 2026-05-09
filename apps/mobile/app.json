@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "KejaFinder",
+    "slug": "kejafinder",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "kejafinder",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#00236f"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "co.ke.kejafinder"
+    },
+    "android": {
+      "package": "co.ke.kejafinder",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#00236f"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": ["expo-router", "expo-font"],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

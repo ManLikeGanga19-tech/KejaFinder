@@ -1,0 +1,29 @@
+{
+  "name": "kejafinder",
+  "version": "1.0.0",
+  "private": true,
+  "description": "KejaFinder — Kenyan real estate platform monorepo",
+  "workspaces": [
+    "api",
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm --workspace api run dev",
+    "build:api": "npm --workspace api run build",
+    "test:api": "npm --workspace api run test",
+    "test:api:unit": "npm --workspace api run test:unit",
+    "test:api:integration": "npm --workspace api run test:integration",
+    "test:mobile": "npm --workspace mobile run test",
+    "test": "npm run test:api:unit && npm run test:mobile",
+    "openapi:dump": "npm --workspace api run openapi:dump",
+    "openapi:lint": "redocly lint docs/openapi/bundle.yaml"
+  },
+  "devDependencies": {
+    "@redocly/cli": "^1.18.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

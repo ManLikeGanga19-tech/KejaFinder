@@ -1,0 +1,44 @@
+description: Condensed area data for list views and teaser cards
+type: object
+properties:
+  id:
+    type: string
+  slug:
+    type: string
+    example: kilimani
+  name:
+    type: string
+    example: Kilimani
+  city:
+    type: string
+    example: Nairobi
+  tags:
+    type: array
+    items:
+      type: string
+    example: [Upmarket, Walkable]
+  heroImageUrl:
+    type: string
+    format: uri
+    nullable: true
+  areaScore:
+    type: number
+    example: 8.4
+  safetyRating:
+    type: integer
+    example: 78
+  safetyLabel:
+    type: string
+    example: Generally Safe
+  costTier:
+    type: string
+    example: '$$$'
+  rentRangeMin:
+    type: integer
+    example: 35000
+  rentRangeMax:
+    type: integer
+    example: 150000
+  activeListingsCount:
+    type: integer
+    example: 34

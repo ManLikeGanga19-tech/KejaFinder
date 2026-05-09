@@ -1,0 +1,178 @@
+paths:
+  /notifications:
+    get:
+      tags: [notifications]
+      summary: Get notifications for current user
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+          description: When true, returns only unread notifications
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Page'
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Notifications with unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      notifications:
+                        type: array
+                        items:
+                          $ref: '../components/schemas/Notification.yaml'
+                      unreadCount:
+                        type: integer
+                        example: 3
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+
+  /notifications/read-all:
+    post:
+      tags: [notifications]
+      summary: Mark all notifications as read
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: All notifications marked read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+
+  /notifications/{id}/read:
+    patch:
+      tags: [notifications]
+      summary: Mark a single notification as read
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notification marked read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+
+  /notifications/{id}:
+    delete:
+      tags: [notifications]
+      summary: Delete a notification
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notification deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+
+  /notifications/push-token:
+    post:
+      tags: [notifications]
+      summary: Register FCM push token
+      description: |
+        Registers a device's FCM push token for the authenticated user.
+        Call after Firebase Cloud Messaging returns a token on the device.
+        Uses `ON CONFLICT (token) DO UPDATE` — safe to call repeatedly.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, platform]
+              properties:
+                token:
+                  type: string
+                  minLength: 10
+                  description: FCM device registration token
+                platform:
+                  type: string
+                  enum: [ios, android, web]
+      responses:
+        '201':
+          description: Push token registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+
+  /notifications/push-token/{token}:
+    delete:
+      tags: [notifications]
+      summary: Deregister a push token
+      description: |
+        Marks the push token as inactive. Call on user logout to stop push notifications
+        to this device. Token is soft-deleted (`is_active = false`) rather than removed.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Push token deregistered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'

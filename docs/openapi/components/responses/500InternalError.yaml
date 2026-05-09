@@ -1,0 +1,10 @@
+description: Unexpected server error
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/ErrorResponse.yaml'
+    example:
+      success: false
+      error:
+        code: INTERNAL_SERVER_ERROR
+        message: An unexpected error occurred. Please try again.

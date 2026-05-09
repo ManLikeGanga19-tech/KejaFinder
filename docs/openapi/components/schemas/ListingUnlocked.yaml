@@ -1,0 +1,55 @@
+description: |
+  Property listing in unlocked state. All sensitive fields are present.
+  Returned when the authenticated user has an unlock record for this listing.
+allOf:
+  - $ref: './ListingLocked.yaml'
+  - type: object
+    properties:
+      isLocked:
+        type: boolean
+        example: false
+      address:
+        type: string
+        description: Full street address — revealed after unlock
+        example: Apt 4B, Milimani Towers, Ngong Road
+      coordinates:
+        type: object
+        description: Exact GPS coordinates — revealed after unlock
+        properties:
+          lat:
+            type: number
+            example: -1.2921
+          lng:
+            type: number
+            example: 36.8219
+      caretaker:
+        type: object
+        nullable: true
+        properties:
+          name:
+            type: string
+            example: Peter Mwangi
+          phone:
+            type: string
+            example: "+254700123456"
+      agent:
+        type: object
+        description: Full agent contact info — revealed after unlock
+        properties:
+          id:
+            type: string
+          displayName:
+            type: string
+          companyName:
+            type: string
+            nullable: true
+          logoUrl:
+            type: string
+            nullable: true
+          phone:
+            type: string
+            description: Agent's direct phone number
+            example: "+254722987654"
+          email:
+            type: string
+            format: email

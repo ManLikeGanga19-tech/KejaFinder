@@ -1,0 +1,10 @@
+description: Authenticated but insufficient permissions
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/ErrorResponse.yaml'
+    example:
+      success: false
+      error:
+        code: FORBIDDEN
+        message: You do not have permission to perform this action.

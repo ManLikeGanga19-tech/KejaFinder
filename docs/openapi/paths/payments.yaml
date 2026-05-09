@@ -1,0 +1,237 @@
+paths:
+  /payments/initiate:
+    post:
+      tags: [payments]
+      summary: Initiate M-Pesa STK Push
+      description: |
+        Sends an STK Push to the user's M-Pesa phone number and creates a `pending` payment record.
+
+        **Idempotency:** Generate a UUID v4 `idempotencyKey` client-side before calling.
+        Re-sending the same key within 24h returns the original payment record without
+        re-triggering the STK Push — safe to retry on network failure.
+
+        **Polling:** Use the returned `pollUrl` to poll status every 3–5 seconds until
+        status transitions from `pending` to `completed`, `failed`, `cancelled`, or `timeout`.
+
+        **Already unlocked:** Returns `ALREADY_UNLOCKED` 400 if the user has already paid for this listing.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [listingId, paymentType, phone, idempotencyKey]
+              properties:
+                listingId:
+                  type: string
+                  example: a3f8c2d1-4e5b-6c7d-8e9f-0a1b2c3d4e5f
+                paymentType:
+                  type: string
+                  enum: [unlock, booking]
+                phone:
+                  type: string
+                  pattern: '^\+254[0-9]{9}$'
+                  description: M-Pesa registered phone number (E.164)
+                  example: "+254712345678"
+                idempotencyKey:
+                  type: string
+                  format: uuid
+                  description: Client-generated UUID v4 — prevents double STK Push on retry
+                months:
+                  type: integer
+                  minimum: 1
+                  maximum: 12
+                  default: 1
+                  description: Number of months for booking payments
+      responses:
+        '202':
+          description: STK Push triggered — poll `pollUrl` for result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '../components/schemas/Payment.yaml'
+        '200':
+          description: Idempotent repeat — original payment record returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '../components/schemas/Payment.yaml'
+        '400':
+          description: Already unlocked or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../components/schemas/ErrorResponse.yaml'
+              examples:
+                alreadyUnlocked:
+                  summary: Already unlocked
+                  value:
+                    success: false
+                    error:
+                      code: ALREADY_UNLOCKED
+                      message: You have already unlocked this listing.
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '404':
+          $ref: '../components/responses/404NotFound.yaml'
+        '503':
+          description: M-Pesa service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '../components/schemas/ErrorResponse.yaml'
+
+  /payments/{checkoutRequestId}/status:
+    get:
+      tags: [payments]
+      summary: Poll STK Push result
+      description: |
+        Backed by Redis cache — responds within milliseconds.
+        Poll every 3–5 seconds after initiating STK Push.
+
+        **Status lifecycle:** `pending` → `processing` → `completed` | `failed` | `cancelled` | `timeout`
+
+        **ResultCode mapping:**
+        - `0` = success (→ `processing` then `completed`)
+        - `1032` = user cancelled (→ `cancelled`)
+        - `1037` = request timeout (→ `timeout`)
+        - all others = `failed`
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: checkoutRequestId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: ws_CO_08052026_123456789012345
+      responses:
+        '200':
+          description: Current payment status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        enum: [pending, processing, completed, failed, cancelled, timeout]
+                      mpesaReceiptNumber:
+                        type: string
+                        nullable: true
+                        example: QKA1B2C3D4
+                      resultDesc:
+                        type: string
+                        nullable: true
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '404':
+          $ref: '../components/responses/404NotFound.yaml'
+
+  /payments/callback:
+    post:
+      tags: [payments]
+      summary: Daraja IPN webhook (Safaricom → KejaFinder)
+      description: |
+        Called by Safaricom when the M-Pesa transaction completes or fails.
+
+        **IP restricted:** Only accepts requests from `196.201.214.0/24` (Safaricom Daraja).
+
+        **Always returns HTTP 200** — Safaricom requires this regardless of processing errors.
+
+        **Processing:** Validates callback → writes status to Redis → enqueues BullMQ job.
+        All heavy work (Unlock, Lead, push notifications) runs in the BullMQ worker.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Body:
+                  type: object
+                  properties:
+                    stkCallback:
+                      type: object
+                      properties:
+                        MerchantRequestID:
+                          type: string
+                        CheckoutRequestID:
+                          type: string
+                        ResultCode:
+                          type: integer
+                          description: 0 = success, 1032 = cancelled, 1037 = timeout
+                        ResultDesc:
+                          type: string
+                        CallbackMetadata:
+                          type: object
+      responses:
+        '200':
+          description: Always 200 — required by Safaricom Daraja
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ResultCode:
+                    type: integer
+                    example: 0
+                  ResultDesc:
+                    type: string
+                    example: Confirmation received successfully
+
+  /payments/history:
+    get:
+      tags: [payments]
+      summary: Consumer payment history
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [unlock, booking, agent_subscription]
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Page'
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Payment history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      payments:
+                        type: array
+                        items:
+                          $ref: '../components/schemas/Payment.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'

@@ -1,0 +1,20 @@
+type: object
+properties:
+  success:
+    type: boolean
+    example: false
+  error:
+    type: object
+    properties:
+      code:
+        type: string
+        example: NOT_FOUND
+        description: Machine-readable error code
+      message:
+        type: string
+        example: The requested resource was not found.
+        description: Human-readable error message
+      details:
+        type: object
+        nullable: true
+        description: Additional validation details (field-level errors)

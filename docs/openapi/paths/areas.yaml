@@ -1,0 +1,203 @@
+paths:
+  /areas:
+    get:
+      tags: [areas]
+      summary: List areas with basic stats
+      security: []
+      responses:
+        '200':
+          description: All active areas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      areas:
+                        type: array
+                        items:
+                          $ref: '../components/schemas/AreaPreview.yaml'
+
+  /areas/recommended:
+    get:
+      tags: [areas]
+      summary: Recommended areas bento grid
+      description: |
+        Returns a curated set of areas for the home screen bento grid.
+        Auth optional — with JWT, personalises based on price range of viewed listings.
+      security: []
+      responses:
+        '200':
+          description: Recommended areas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      areas:
+                        type: array
+                        maxItems: 6
+                        items:
+                          $ref: '../components/schemas/AreaPreview.yaml'
+
+  /areas/compare:
+    get:
+      tags: [areas]
+      summary: Side-by-side area comparison
+      description: Compare 2–3 areas by slug. Returns full intelligence data for each.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: slugs
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Comma-separated area slugs, e.g. `kilimani,westlands,kileleshwa`
+          example: kilimani,westlands
+      responses:
+        '200':
+          description: Comparison data for requested areas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      areas:
+                        type: array
+                        items:
+                          $ref: '../components/schemas/Area.yaml'
+        '400':
+          description: Invalid slugs or too many areas requested
+          content:
+            application/json:
+              schema:
+                $ref: '../components/schemas/ErrorResponse.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+
+  /areas/{slug}:
+    get:
+      tags: [areas]
+      summary: Full area intelligence
+      description: |
+        Returns the complete Area Intelligence page data:
+        - Safety rating (0–100) with label and notes
+        - Cost tier and rent range (KES min/max)
+        - Mobility score, walkability score, connectivity
+        - Investment growth %, rental yield %, demand score
+        - Amenities grouped by category (healthcare, education, retail, etc.)
+        - `boundaryGeoJSON` — PostGIS polygon for map overlay
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          example: kilimani
+      responses:
+        '200':
+          description: Full area intelligence data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      area:
+                        $ref: '../components/schemas/Area.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '404':
+          $ref: '../components/responses/404NotFound.yaml'
+
+  /areas/{slug}/preview:
+    get:
+      tags: [areas]
+      summary: Area teaser preview (for locked property view)
+      description: |
+        Returns a limited area data card shown on the locked property detail page.
+        Does not require authentication. Withholds full amenity list and investment data.
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Area preview card
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      area:
+                        $ref: '../components/schemas/AreaPreview.yaml'
+        '404':
+          $ref: '../components/responses/404NotFound.yaml'
+
+  /areas/{slug}/listings:
+    get:
+      tags: [areas]
+      summary: Listings within an area
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Page'
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Listings in this area
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      listings:
+                        type: array
+                        items:
+                          $ref: '../components/schemas/ListingLocked.yaml'
+        '404':
+          $ref: '../components/responses/404NotFound.yaml'

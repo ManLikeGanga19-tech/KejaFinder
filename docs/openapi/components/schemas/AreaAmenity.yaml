@@ -1,0 +1,29 @@
+type: object
+properties:
+  id:
+    type: string
+  name:
+    type: string
+    example: Nairobi Hospital
+  category:
+    type: string
+    enum: [healthcare, education, retail, transport, recreation, finance, dining]
+  subcategory:
+    type: string
+    nullable: true
+    example: Private Hospital
+  distanceKm:
+    type: number
+    nullable: true
+    example: 0.8
+  rating:
+    type: number
+    nullable: true
+    example: 4.5
+    description: Out of 5
+  isTopTier:
+    type: boolean
+    example: true
+  address:
+    type: string
+    nullable: true

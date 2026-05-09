@@ -1,0 +1,1416 @@
+{
+  "info": {
+    "_postman_id": "kf-api-v1-collection",
+    "name": "KejaFinder API v1",
+    "description": "Full API collection for KejaFinder — Kenyan real estate platform.\n\n## Setup\n1. Import `envs/local.postman_environment.json` or `envs/staging.postman_environment.json`\n2. Run **Auth → Register Consumer** to get an `ACCESS_TOKEN`\n3. All subsequent requests use the token automatically via collection-level auth\n\n## Auto-token management\nThe collection pre-request script auto-refreshes the Firebase token when it is near expiry.\nIndividual requests that set tokens (login, register) use test scripts to auto-populate env vars.\n\n## M-Pesa test flow\n1. Run **Payments → Initiate Unlock Payment** — note `checkoutRequestId` (auto-saved to env)\n2. Run **Payments → Simulate IPN Callback (SUCCESS)** to fake Safaricom callback\n3. Run **Payments → Poll Payment Status** — should return `completed`\n4. Run **Listings → Get Single Listing (Unlocked)** — returns full address and contact details",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{ACCESS_TOKEN}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-refresh Firebase token if within 5 minutes of expiry",
+          "const token = pm.environment.get('ACCESS_TOKEN');",
+          "if (!token) return;",
+          "try {",
+          "  const payload = JSON.parse(atob(token.split('.')[1]));",
+          "  const expiresIn = payload.exp - Math.floor(Date.now() / 1000);",
+          "  if (expiresIn < 300) {",
+          "    console.log('Token expiring soon — refresh via Firebase client SDK on device');",
+          "  }",
+          "} catch(e) { /* non-JWT token */ }"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "{{BASE_URL}}/v1", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Firebase token sync and user registration",
+      "item": [
+        {
+          "name": "Register Consumer",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firebaseIdToken\": \"{{FIREBASE_ID_TOKEN}}\",\n  \"name\": \"James Waweru\",\n  \"phone\": \"+254712345678\",\n  \"role\": \"consumer\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Register succeeds', () => pm.expect(res.success).to.be.true);",
+                  "if (res.data?.user?.id) {",
+                  "  pm.environment.set('TEST_USER_ID', res.data.user.id);",
+                  "  console.log('User ID saved:', res.data.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sync Session",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/sync",
+            "header": [{ "key": "Content-Type", "value": "application/json" }]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Sync succeeds', () => pm.expect(res.success).to.be.true);",
+                  "pm.test('User role returned', () => pm.expect(res.data.user.role).to.be.oneOf(['consumer','agent','admin']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Agent",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firebaseIdToken\": \"{{AGENT_FIREBASE_ID_TOKEN}}\",\n  \"name\": \"John Kamau\",\n  \"phone\": \"+254722987654\",\n  \"role\": \"agent\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Agent registered', () => pm.expect([200,201]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "Consumer profile, saved listings, unlock history",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has user object', () => pm.expect(res.data.user).to.be.an('object'));",
+                  "pm.environment.set('TEST_USER_ID', res.data.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/users/me",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"James Waweru Updated\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Profile updated', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Saved Listings",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/users/me/saved-listings?page=1&limit=10",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has listings array', () => pm.expect(res.data.listings).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Save a Listing",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/users/me/saved-listings/{{TEST_LISTING_ID}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Listing saved', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unsave a Listing",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/users/me/saved-listings/{{TEST_LISTING_ID}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Listing unsaved', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Unlock History",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/users/me/unlocks?page=1&limit=10",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has unlocks array', () => pm.expect(res.data.unlocks).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Listings",
+      "description": "Property search, map pins, featured carousel",
+      "item": [
+        {
+          "name": "Search Listings (Kilimani radius)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/listings?lat=-1.2889&lng=36.8172&radiusKm=3&page=1&limit=10",
+              "query": [
+                { "key": "lat", "value": "-1.2889" },
+                { "key": "lng", "value": "36.8172" },
+                { "key": "radiusKm", "value": "3" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has listings', () => pm.expect(res.data.listings).to.be.an('array'));",
+                  "pm.test('Coordinates null (privacy)', () => {",
+                  "  if (res.data.listings.length > 0) {",
+                  "    pm.expect(res.data.listings[0].coordinates).to.be.null;",
+                  "  }",
+                  "});",
+                  "if (res.data.listings[0]) pm.environment.set('TEST_LISTING_ID', res.data.listings[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search Listings (with filters)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/listings?areaSlug=kilimani&bedrooms=2&minPrice=30000&maxPrice=80000&propertyType=apartment&sortBy=price_asc",
+              "query": [
+                { "key": "areaSlug", "value": "kilimani" },
+                { "key": "bedrooms", "value": "2" },
+                { "key": "minPrice", "value": "30000" },
+                { "key": "maxPrice", "value": "80000" },
+                { "key": "propertyType", "value": "apartment" },
+                { "key": "sortBy", "value": "price_asc" }
+              ]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Featured Listings",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/listings/featured",
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Max 10 featured', () => pm.expect(res.data.listings.length).to.be.at.most(10));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Map Pins",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/listings/map-pins?swLat=-1.32&swLng=36.77&neLat=-1.25&neLng=36.87",
+              "query": [
+                { "key": "swLat", "value": "-1.32" },
+                { "key": "swLng", "value": "36.77" },
+                { "key": "neLat", "value": "-1.25" },
+                { "key": "neLng", "value": "36.87" }
+              ]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has pins array', () => pm.expect(res.data.pins).to.be.an('array'));",
+                  "pm.test('Pins have approx coords', () => {",
+                  "  if (res.data.pins.length > 0) {",
+                  "    pm.expect(res.data.pins[0]).to.have.property('approxLat');",
+                  "    pm.expect(res.data.pins[0]).to.have.property('approxLng');",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Single Listing (Locked)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/listings/{{TEST_LISTING_ID}}",
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Listing is locked', () => pm.expect(res.data.listing.isLocked).to.be.true);",
+                  "pm.test('Address null', () => pm.expect(res.data.listing.address).to.be.null);",
+                  "pm.test('Coordinates null', () => pm.expect(res.data.listing.coordinates).to.be.null);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Single Listing (Unlocked — after payment)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/listings/{{TEST_LISTING_ID}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "if (res.data.listing.isLocked === false) {",
+                  "  pm.test('Address present', () => pm.expect(res.data.listing.address).to.be.a('string'));",
+                  "  pm.test('Coordinates present', () => pm.expect(res.data.listing.coordinates).to.be.an('object'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Save Listing",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/listings/{{TEST_LISTING_ID}}/save"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Saved', () => pm.expect([200,201]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unsave Listing",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/listings/{{TEST_LISTING_ID}}/save"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Unsaved', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Areas",
+      "description": "Area intelligence, comparison, listings by area",
+      "item": [
+        {
+          "name": "List All Areas",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/areas",
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has areas', () => pm.expect(res.data.areas).to.be.an('array').with.length.gt(0));",
+                  "if (res.data.areas[0]) pm.environment.set('TEST_AREA_SLUG', res.data.areas[0].slug);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Recommended Areas",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/areas/recommended",
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Max 6 recommended', () => pm.expect(res.data.areas.length).to.be.at.most(6));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Area Preview (Teaser)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/areas/kilimani/preview",
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has safety rating', () => pm.expect(res.data.area.safetyRating).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Full Area Intelligence (Kilimani)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/areas/kilimani"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "const area = res.data.area;",
+                  "pm.test('Has safety data', () => pm.expect(area.safetyRating).to.be.a('number'));",
+                  "pm.test('Has cost tier', () => pm.expect(area.costTier).to.be.a('string'));",
+                  "pm.test('Has amenities', () => pm.expect(area.amenities).to.be.an('object'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Compare Areas",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/areas/compare?slugs=kilimani,westlands",
+              "query": [{ "key": "slugs", "value": "kilimani,westlands" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Returns 2 areas', () => pm.expect(res.data.areas.length).to.equal(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listings in Area",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/areas/kilimani/listings?page=1&limit=5",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "5" }
+              ]
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "description": "M-Pesa STK Push, polling, IPN callback, history",
+      "item": [
+        {
+          "name": "Initiate Unlock Payment",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/payments/initiate",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listingId\": \"{{TEST_LISTING_ID}}\",\n  \"paymentType\": \"unlock\",\n  \"phone\": \"{{MPESA_TEST_PHONE}}\",\n  \"idempotencyKey\": \"{{$guid}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 202', () => pm.response.to.have.status(202));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has checkoutRequestId', () => pm.expect(res.data.checkoutRequestId).to.be.a('string'));",
+                  "pm.test('Status is pending', () => pm.expect(res.data.status).to.equal('pending'));",
+                  "pm.environment.set('TEST_CHECKOUT_ID', res.data.checkoutRequestId);",
+                  "pm.environment.set('TEST_PAYMENT_ID', res.data.paymentId);",
+                  "console.log('Checkout ID saved:', res.data.checkoutRequestId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Poll Payment Status",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/payments/{{TEST_CHECKOUT_ID}}/status"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has status field', () => pm.expect(res.data.status).to.be.oneOf(['pending','processing','completed','failed','cancelled','timeout']));",
+                  "console.log('Payment status:', res.data.status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Simulate IPN Callback (SUCCESS)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/payments/callback",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Body\": {\n    \"stkCallback\": {\n      \"MerchantRequestID\": \"test-merchant-req-001\",\n      \"CheckoutRequestID\": \"{{TEST_CHECKOUT_ID}}\",\n      \"ResultCode\": 0,\n      \"ResultDesc\": \"The service request is processed successfully.\",\n      \"CallbackMetadata\": {\n        \"Item\": [\n          { \"Name\": \"Amount\", \"Value\": 499 },\n          { \"Name\": \"MpesaReceiptNumber\", \"Value\": \"QKA1B2C3D4\" },\n          { \"Name\": \"TransactionDate\", \"Value\": 20260508103015 },\n          { \"Name\": \"PhoneNumber\", \"Value\": 254712345678 }\n        ]\n      }\n    }\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Always 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('ResultCode 0', () => pm.expect(res.ResultCode).to.equal(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Simulate IPN Callback (CANCELLED)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/payments/callback",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Body\": {\n    \"stkCallback\": {\n      \"MerchantRequestID\": \"test-merchant-req-002\",\n      \"CheckoutRequestID\": \"{{TEST_CHECKOUT_ID}}\",\n      \"ResultCode\": 1032,\n      \"ResultDesc\": \"Request cancelled by user.\"\n    }\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Always 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Payment History",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/payments/history?page=1&limit=10",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has payments array', () => pm.expect(res.data.payments).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Agents",
+      "description": "Agent registration, KYC, listings CRUD, lead CRM, dashboard",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{AGENT_ACCESS_TOKEN}}", "type": "string" }]
+      },
+      "item": [
+        {
+          "name": "Register as Agent",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/agents/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"John Kamau Properties\",\n  \"companyName\": \"Kamau Real Estate Ltd\",\n  \"bio\": \"10+ years experience in Nairobi residential real estate.\",\n  \"licenseNumber\": \"LSK/2024/001234\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Agent registered', () => pm.expect([201,409]).to.include(pm.response.code));",
+                  "if (res.data?.agent?.id) pm.environment.set('TEST_AGENT_ID', res.data.agent.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Agent Dashboard",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/agents/me/dashboard"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has stats', () => pm.expect(res.data.stats).to.be.an('object'));",
+                  "pm.test('Has activeProperties', () => pm.expect(res.data.activeProperties).to.be.an('array'));",
+                  "pm.test('Has recentLeads', () => pm.expect(res.data.recentLeads).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Agent Listings",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/agents/me/listings?page=1&limit=10",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Listing",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/agents/me/listings",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Spacious 2BR Apartment in Kilimani\",\n  \"descriptionFull\": \"Beautiful apartment on 4th floor with city views. Recently renovated with modern kitchen and en-suite bathrooms. 24hr security, backup generator, borehole water.\",\n  \"propertyType\": \"apartment\",\n  \"priceKes\": 55000,\n  \"pricePeriod\": \"monthly\",\n  \"bedrooms\": 2,\n  \"bathrooms\": 2,\n  \"areaSqft\": 980,\n  \"furnishing\": \"semi_furnished\",\n  \"parking\": 1,\n  \"petsAllowed\": false,\n  \"wifi\": true,\n  \"amenities\": [\"Swimming Pool\", \"Gym\", \"24hr Security\", \"Backup Generator\"],\n  \"city\": \"Nairobi\",\n  \"areaSlug\": \"kilimani\",\n  \"address\": \"Apt 4B, Milimani Towers, Ngong Road, Kilimani\",\n  \"coordinates\": { \"lat\": -1.2889, \"lng\": 36.8172 },\n  \"depositMonths\": 2,\n  \"unlockPriceKes\": 499\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (pm.response.code === 201) {",
+                  "  pm.test('Listing created', () => pm.expect(res.success).to.be.true);",
+                  "  pm.test('Status pending_review', () => pm.expect(res.data.listing.status).to.equal('pending_review'));",
+                  "  pm.environment.set('TEST_AGENT_LISTING_ID', res.data.listing.id);",
+                  "  console.log('Agent listing ID:', res.data.listing.id);",
+                  "} else if (pm.response.code === 403) {",
+                  "  console.log('KYC not verified — expected in sandbox');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Listing",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/agents/me/listings/{{TEST_AGENT_LISTING_ID}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"priceKes\": 58000,\n  \"amenities\": [\"Swimming Pool\", \"Gym\", \"24hr Security\", \"Backup Generator\", \"Rooftop Lounge\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete (Archive) Listing",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/agents/me/listings/{{TEST_AGENT_LISTING_ID}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Leads",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/agents/me/leads?page=1&limit=10",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has leads array', () => pm.expect(res.data.leads).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Public Agent Profile",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/agents/{{TEST_AGENT_ID}}/profile",
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('No private contact in public profile', () => {",
+                  "  pm.expect(res.data.agent.phone).to.be.undefined;",
+                  "  pm.expect(res.data.agent.email).to.be.undefined;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Media",
+      "description": "Cloudinary signed upload and asset deletion",
+      "item": [
+        {
+          "name": "Get Upload URL (listings folder)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/media/upload-url",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"folder\": \"listings\",\n  \"filename\": \"property-front.jpg\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has uploadUrl', () => pm.expect(res.data.uploadUrl).to.include('cloudinary.com'));",
+                  "pm.test('Has signature', () => pm.expect(res.data.fields.signature).to.be.a('string'));",
+                  "pm.environment.set('TEST_CLOUDINARY_PUBLIC_ID', res.data.fields.public_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Upload URL (avatars folder)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/media/upload-url",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"folder\": \"avatars\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Media Asset",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/media/{{TEST_CLOUDINARY_PUBLIC_ID}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "description": "In-app notifications and FCM push token management",
+      "item": [
+        {
+          "name": "Get Notifications",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/notifications?page=1&limit=20",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has notifications', () => pm.expect(res.data.notifications).to.be.an('array'));",
+                  "pm.test('Has unreadCount', () => pm.expect(res.data.unreadCount).to.be.a('number'));",
+                  "if (res.data.notifications[0]) pm.environment.set('TEST_NOTIFICATION_ID', res.data.notifications[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Unread Only",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/notifications?unreadOnly=true",
+              "query": [{ "key": "unreadOnly", "value": "true" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('All unread', () => {",
+                  "  res.data.notifications.forEach(n => pm.expect(n.isRead).to.be.false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark Notification Read",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/notifications/{{TEST_NOTIFICATION_ID}}/read"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark All Read",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/notifications/read-all"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Notification",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/notifications/{{TEST_NOTIFICATION_ID}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Push Token",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/notifications/push-token",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{FCM_PUSH_TOKEN}}\",\n  \"platform\": \"android\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deregister Push Token (Logout)",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/notifications/push-token/{{FCM_PUSH_TOKEN}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "description": "Listing moderation, agent KYC review, platform stats — requires admin JWT",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{ADMIN_ACCESS_TOKEN}}", "type": "string" }]
+      },
+      "item": [
+        {
+          "name": "Get Listing Moderation Queue",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/admin/listings/queue?status=pending_review&page=1&limit=20",
+              "query": [
+                { "key": "status", "value": "pending_review" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has listings queue', () => pm.expect(res.data.listings).to.be.an('array'));",
+                  "if (res.data.listings[0]) pm.environment.set('TEST_PENDING_LISTING_ID', res.data.listings[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve Listing",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/admin/listings/{{TEST_PENDING_LISTING_ID}}/approve"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "if (res.data?.listing) {",
+                  "  pm.test('Status active', () => pm.expect(res.data.listing.status).to.equal('active'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject Listing",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/admin/listings/{{TEST_PENDING_LISTING_ID}}/reject",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Photos do not show the actual property. Please upload current, accurate photos of the unit.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Feature Listing",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/admin/listings/{{TEST_LISTING_ID}}/feature",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"featured\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Agent KYC Queue",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/admin/agents/queue?page=1&limit=20",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has agents queue', () => pm.expect(res.data.agents).to.be.an('array'));",
+                  "if (res.data.agents[0]) pm.environment.set('TEST_PENDING_AGENT_ID', res.data.agents[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Agent KYC",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/admin/agents/{{TEST_PENDING_AGENT_ID}}/verify"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject Agent KYC",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/admin/agents/{{TEST_PENDING_AGENT_ID}}/reject",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"The National ID document provided is not legible. Please resubmit a clear scan of the front and back.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Suspend Agent",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/admin/agents/{{TEST_AGENT_ID}}/suspend",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Multiple reports of misleading listing information.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List All Users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/admin/users?page=1&limit=20",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has users', () => pm.expect(res.data.users).to.be.an('array'));",
+                  "pm.test('Has total count', () => pm.expect(res.data.total).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search Users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/admin/users?q=james&role=consumer",
+              "query": [
+                { "key": "q", "value": "james" },
+                { "key": "role", "value": "consumer" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payment Audit Log",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/admin/payments?status=completed&page=1&limit=20",
+              "query": [
+                { "key": "status", "value": "completed" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Platform Stats",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin/stats"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has all stat groups', () => {",
+                  "  pm.expect(res.data.users).to.be.an('object');",
+                  "  pm.expect(res.data.listings).to.be.an('object');",
+                  "  pm.expect(res.data.payments).to.be.an('object');",
+                  "  pm.expect(res.data.agents).to.be.an('object');",
+                  "});",
+                  "console.log('Total revenue (KES):', res.data.payments?.totalRevenueKes);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

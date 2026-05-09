@@ -1,0 +1,20 @@
+type: http
+scheme: bearer
+bearerFormat: Firebase ID Token
+description: |
+  Firebase ID token issued by Firebase Auth client SDK after phone OTP or email/password sign-in.
+
+  **How to get a token:**
+  ```javascript
+  // React Native (Expo)
+  import auth from '@react-native-firebase/auth';
+  const token = await auth().currentUser.getIdToken();
+  ```
+
+  **Usage:**
+  ```
+  Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+  ```
+
+  Tokens expire after 1 hour. Firebase Auth client SDK automatically refreshes them.
+  The server verifies each token via `firebase-admin.auth().verifyIdToken()`.

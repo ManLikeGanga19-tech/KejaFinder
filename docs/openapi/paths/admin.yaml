@@ -1,0 +1,456 @@
+paths:
+  /admin/listings/queue:
+    get:
+      tags: [admin]
+      summary: Listing moderation queue
+      description: Returns listings pending review, ordered oldest first.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending_review, flagged]
+            default: pending_review
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Page'
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Moderation queue
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      listings:
+                        type: array
+                        items:
+                          $ref: '../components/schemas/ListingLocked.yaml'
+                      total:
+                        type: integer
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '403':
+          $ref: '../components/responses/403Forbidden.yaml'
+
+  /admin/listings/{id}/approve:
+    patch:
+      tags: [admin]
+      summary: Approve a listing
+      description: Sets status to `active`, records `approved_at` and `published_at`. Sends push notification to agent.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Listing approved and published
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      listing:
+                        $ref: '../components/schemas/ListingLocked.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '403':
+          $ref: '../components/responses/403Forbidden.yaml'
+        '404':
+          $ref: '../components/responses/404NotFound.yaml'
+
+  /admin/listings/{id}/reject:
+    patch:
+      tags: [admin]
+      summary: Reject a listing with reason
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 500
+                  example: Photos are not of the actual property. Please upload real photos.
+      responses:
+        '200':
+          description: Listing rejected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '403':
+          $ref: '../components/responses/403Forbidden.yaml'
+
+  /admin/listings/{id}/feature:
+    patch:
+      tags: [admin]
+      summary: Toggle featured status
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [featured]
+              properties:
+                featured:
+                  type: boolean
+      responses:
+        '200':
+          description: Featured status updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '403':
+          $ref: '../components/responses/403Forbidden.yaml'
+
+  /admin/agents/queue:
+    get:
+      tags: [admin]
+      summary: Agent KYC verification queue
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Page'
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Agents pending KYC review
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      agents:
+                        type: array
+                        items:
+                          $ref: '../components/schemas/Agent.yaml'
+                      total:
+                        type: integer
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '403':
+          $ref: '../components/responses/403Forbidden.yaml'
+
+  /admin/agents/{id}/verify:
+    patch:
+      tags: [admin]
+      summary: Approve agent KYC
+      description: Sets `kycStatus = approved`, records `kycVerifiedAt`. Sends push notification.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agent KYC approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '403':
+          $ref: '../components/responses/403Forbidden.yaml'
+
+  /admin/agents/{id}/reject:
+    patch:
+      tags: [admin]
+      summary: Reject agent KYC with reason
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 500
+      responses:
+        '200':
+          description: KYC rejected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '403':
+          $ref: '../components/responses/403Forbidden.yaml'
+
+  /admin/agents/{id}/suspend:
+    patch:
+      tags: [admin]
+      summary: Suspend an agent account
+      description: Sets `is_active = false` on the agent and marks all active listings as `inactive`.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  minLength: 5
+      responses:
+        '200':
+          description: Agent suspended
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '403':
+          $ref: '../components/responses/403Forbidden.yaml'
+
+  /admin/users:
+    get:
+      tags: [admin]
+      summary: List all users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [consumer, agent, admin]
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Search by name, email, or phone
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Page'
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Limit'
+      responses:
+        '200':
+          description: User list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      users:
+                        type: array
+                        items:
+                          $ref: '../components/schemas/User.yaml'
+                      total:
+                        type: integer
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '403':
+          $ref: '../components/responses/403Forbidden.yaml'
+
+  /admin/payments:
+    get:
+      tags: [admin]
+      summary: Payment audit log
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, processing, completed, failed, cancelled, timeout, refunded]
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [unlock, booking, agent_subscription]
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Page'
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Payment audit log
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      payments:
+                        type: array
+                        items:
+                          $ref: '../components/schemas/Payment.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '403':
+          $ref: '../components/responses/403Forbidden.yaml'
+
+  /admin/stats:
+    get:
+      tags: [admin]
+      summary: Platform aggregate stats
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Platform statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      users:
+                        type: object
+                        properties:
+                          totalUsers:
+                            type: integer
+                          totalConsumers:
+                            type: integer
+                          totalAgents:
+                            type: integer
+                          newUsersThisMonth:
+                            type: integer
+                      listings:
+                        type: object
+                        properties:
+                          totalListings:
+                            type: integer
+                          activeListings:
+                            type: integer
+                          pendingListings:
+                            type: integer
+                          featuredListings:
+                            type: integer
+                          totalViews:
+                            type: integer
+                          totalUnlocks:
+                            type: integer
+                      payments:
+                        type: object
+                        properties:
+                          totalPayments:
+                            type: integer
+                          completedPayments:
+                            type: integer
+                          totalRevenueKes:
+                            type: integer
+                          revenueThisMonthKes:
+                            type: integer
+                      agents:
+                        type: object
+                        properties:
+                          kycPending:
+                            type: integer
+                          kycApproved:
+                            type: integer
+                          suspended:
+                            type: integer
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '403':
+          $ref: '../components/responses/403Forbidden.yaml'

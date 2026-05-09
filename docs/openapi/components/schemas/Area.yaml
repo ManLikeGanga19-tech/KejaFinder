@@ -1,0 +1,113 @@
+description: Full area intelligence data
+type: object
+properties:
+  id:
+    type: string
+  slug:
+    type: string
+    example: kilimani
+  name:
+    type: string
+    example: Kilimani
+  city:
+    type: string
+    example: Nairobi
+  tags:
+    type: array
+    items:
+      type: string
+    example: [Upmarket, Expat-Friendly, Walkable]
+  heroImageUrl:
+    type: string
+    format: uri
+    nullable: true
+  localInsight:
+    type: string
+    nullable: true
+    example: Kilimani offers a blend of residential calm and proximity to Ngong Road's amenities.
+  areaScore:
+    type: number
+    example: 8.4
+  safetyRating:
+    type: integer
+    minimum: 0
+    maximum: 100
+    example: 78
+  safetyLabel:
+    type: string
+    example: Generally Safe
+  safetyNotes:
+    type: string
+    nullable: true
+  costTier:
+    type: string
+    enum: ['$', '$$', '$$$', '$$$$']
+    example: '$$$'
+  rentRangeMin:
+    type: integer
+    example: 35000
+    description: KES per month
+  rentRangeMax:
+    type: integer
+    example: 150000
+    description: KES per month
+  mobilityScore:
+    type: number
+    example: 7.5
+    description: Out of 10
+  walkabilityScore:
+    type: number
+    example: 8.0
+    description: Out of 10
+  connectivityMins:
+    type: integer
+    example: 20
+    description: Minutes to CBD
+  connectivityRoute:
+    type: string
+    nullable: true
+    example: Ngong Road → Uhuru Highway
+  investmentGrowthPct:
+    type: number
+    example: 12.4
+    description: Year-on-year rental price growth %
+  rentalYieldPct:
+    type: number
+    example: 5.8
+  demandScore:
+    type: string
+    enum: [Low, Medium, High]
+    example: High
+  amenities:
+    type: object
+    description: Grouped by category
+    properties:
+      healthcare:
+        type: array
+        items:
+          $ref: './AreaAmenity.yaml'
+      education:
+        type: array
+        items:
+          $ref: './AreaAmenity.yaml'
+      retail:
+        type: array
+        items:
+          $ref: './AreaAmenity.yaml'
+      transport:
+        type: array
+        items:
+          $ref: './AreaAmenity.yaml'
+      recreation:
+        type: array
+        items:
+          $ref: './AreaAmenity.yaml'
+  boundaryGeoJSON:
+    type: object
+    nullable: true
+    description: GeoJSON Polygon for map boundary overlay
+    example:
+      type: Polygon
+      coordinates: [[[36.79, -1.29], [36.82, -1.29], [36.82, -1.27], [36.79, -1.27], [36.79, -1.29]]]
+  isActive:
+    type: boolean

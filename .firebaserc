@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "kejafinder-production",
+    "staging": "kejafinder-staging",
+    "production": "kejafinder-production"
+  },
+  "targets": {
+    "kejafinder-production": {
+      "hosting": {
+        "web": ["kejafinder-web"]
+      }
+    }
+  }
+}

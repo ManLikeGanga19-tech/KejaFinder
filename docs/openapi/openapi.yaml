@@ -1,0 +1,186 @@
+openapi: 3.1.0
+info:
+  title: KejaFinder API
+  version: 1.0.0
+  description: |
+    **KejaFinder** is a Kenyan real estate platform with a freemium model: users browse listings
+    for free and pay via M-Pesa to unlock full contact details, exact address, and caretaker info.
+    Agents pay monthly subscriptions to list properties and receive leads.
+
+    ## Authentication
+    All protected endpoints require a **Firebase ID token** as a Bearer token:
+    ```
+    Authorization: Bearer <firebase-id-token>
+    ```
+    The token is obtained client-side via Firebase Auth (phone OTP or email/password) and verified
+    server-side using `firebase-admin`.
+
+    ## M-Pesa Payment Flow
+    1. Client generates a UUID v4 `idempotencyKey`
+    2. `POST /v1/payments/initiate` → triggers Daraja STK Push → returns `pollUrl`
+    3. Client polls `GET /v1/payments/{checkoutRequestId}/status` every 3–5 seconds
+    4. Safaricom calls `POST /v1/payments/callback` → BullMQ job created
+    5. Worker creates Unlock record, Lead, sends FCM push notifications
+
+    ## Listing Lock / Unlock
+    `GET /v1/listings/{id}` checks the `unlocks` table for `(userId, listingId)`.
+    Locked response withholds: `address`, `coordinates`, `caretaker.*`, `agent.phone`, `agent.email`.
+
+  contact:
+    name: KejaFinder Support
+    email: support@kejafinder.co.ke
+  license:
+    name: Private
+servers:
+  - url: https://api.kejafinder.co.ke/v1
+    description: Production
+  - url: https://staging-api.kejafinder.co.ke/v1
+    description: Staging
+  - url: http://localhost:3001/v1
+    description: Local development
+
+tags:
+  - name: auth
+    description: Firebase token sync and user registration
+  - name: users
+    description: Consumer profile, saved listings, unlock history
+  - name: listings
+    description: Property search, map pins, featured carousel, lock/unlock
+  - name: areas
+    description: Nairobi area intelligence — safety, cost, accessibility, investment
+  - name: payments
+    description: M-Pesa STK Push, IPN callback, payment history
+  - name: agents
+    description: Agent registration, KYC, listings CRUD, lead CRM, dashboard
+  - name: media
+    description: Cloudinary signed upload URLs and asset deletion
+  - name: notifications
+    description: In-app notifications and FCM push token management
+  - name: admin
+    description: Listing moderation, agent KYC review, platform stats (admin only)
+
+security:
+  - BearerAuth: []
+
+paths:
+  # auth
+  /auth/register:
+    $ref: './paths/auth.yaml#/paths/~1auth~1register'
+  /auth/sync:
+    $ref: './paths/auth.yaml#/paths/~1auth~1sync'
+
+  # users
+  /users/me:
+    $ref: './paths/users.yaml#/paths/~1users~1me'
+  /users/me/saved-listings:
+    $ref: './paths/users.yaml#/paths/~1users~1me~1saved-listings'
+  /users/me/saved-listings/{listingId}:
+    $ref: './paths/users.yaml#/paths/~1users~1me~1saved-listings~1{listingId}'
+  /users/me/unlocks:
+    $ref: './paths/users.yaml#/paths/~1users~1me~1unlocks'
+
+  # listings
+  /listings:
+    $ref: './paths/listings.yaml#/paths/~1listings'
+  /listings/featured:
+    $ref: './paths/listings.yaml#/paths/~1listings~1featured'
+  /listings/map-pins:
+    $ref: './paths/listings.yaml#/paths/~1listings~1map-pins'
+  /listings/{id}:
+    $ref: './paths/listings.yaml#/paths/~1listings~1{id}'
+  /listings/{id}/save:
+    $ref: './paths/listings.yaml#/paths/~1listings~1{id}~1save'
+
+  # areas
+  /areas:
+    $ref: './paths/areas.yaml#/paths/~1areas'
+  /areas/recommended:
+    $ref: './paths/areas.yaml#/paths/~1areas~1recommended'
+  /areas/compare:
+    $ref: './paths/areas.yaml#/paths/~1areas~1compare'
+  /areas/{slug}:
+    $ref: './paths/areas.yaml#/paths/~1areas~1{slug}'
+  /areas/{slug}/preview:
+    $ref: './paths/areas.yaml#/paths/~1areas~1{slug}~1preview'
+  /areas/{slug}/listings:
+    $ref: './paths/areas.yaml#/paths/~1areas~1{slug}~1listings'
+
+  # payments
+  /payments/initiate:
+    $ref: './paths/payments.yaml#/paths/~1payments~1initiate'
+  /payments/{checkoutRequestId}/status:
+    $ref: './paths/payments.yaml#/paths/~1payments~1{checkoutRequestId}~1status'
+  /payments/callback:
+    $ref: './paths/payments.yaml#/paths/~1payments~1callback'
+  /payments/history:
+    $ref: './paths/payments.yaml#/paths/~1payments~1history'
+
+  # agents
+  /agents/register:
+    $ref: './paths/agents.yaml#/paths/~1agents~1register'
+  /agents/me/dashboard:
+    $ref: './paths/agents.yaml#/paths/~1agents~1me~1dashboard'
+  /agents/me/listings:
+    $ref: './paths/agents.yaml#/paths/~1agents~1me~1listings'
+  /agents/me/listings/{id}:
+    $ref: './paths/agents.yaml#/paths/~1agents~1me~1listings~1{id}'
+  /agents/me/leads:
+    $ref: './paths/agents.yaml#/paths/~1agents~1me~1leads'
+  /agents/{id}/profile:
+    $ref: './paths/agents.yaml#/paths/~1agents~1{id}~1profile'
+
+  # media
+  /media/upload-url:
+    $ref: './paths/media.yaml#/paths/~1media~1upload-url'
+  /media/cloudinary/{publicId}:
+    $ref: './paths/media.yaml#/paths/~1media~1cloudinary~1{publicId}'
+  /media/firebase/{folder}/{filename}:
+    $ref: './paths/media.yaml#/paths/~1media~1firebase~1{folder}~1{filename}'
+
+  # notifications
+  /notifications:
+    $ref: './paths/notifications.yaml#/paths/~1notifications'
+  /notifications/read-all:
+    $ref: './paths/notifications.yaml#/paths/~1notifications~1read-all'
+  /notifications/{id}/read:
+    $ref: './paths/notifications.yaml#/paths/~1notifications~1{id}~1read'
+  /notifications/{id}:
+    $ref: './paths/notifications.yaml#/paths/~1notifications~1{id}'
+  /notifications/push-token:
+    $ref: './paths/notifications.yaml#/paths/~1notifications~1push-token'
+  /notifications/push-token/{token}:
+    $ref: './paths/notifications.yaml#/paths/~1notifications~1push-token~1{token}'
+
+  # admin
+  /admin/listings/queue:
+    $ref: './paths/admin.yaml#/paths/~1admin~1listings~1queue'
+  /admin/listings/{id}/approve:
+    $ref: './paths/admin.yaml#/paths/~1admin~1listings~1{id}~1approve'
+  /admin/listings/{id}/reject:
+    $ref: './paths/admin.yaml#/paths/~1admin~1listings~1{id}~1reject'
+  /admin/listings/{id}/feature:
+    $ref: './paths/admin.yaml#/paths/~1admin~1listings~1{id}~1feature'
+  /admin/agents/queue:
+    $ref: './paths/admin.yaml#/paths/~1admin~1agents~1queue'
+  /admin/agents/{id}/verify:
+    $ref: './paths/admin.yaml#/paths/~1admin~1agents~1{id}~1verify'
+  /admin/agents/{id}/reject:
+    $ref: './paths/admin.yaml#/paths/~1admin~1agents~1{id}~1reject'
+  /admin/agents/{id}/suspend:
+    $ref: './paths/admin.yaml#/paths/~1admin~1agents~1{id}~1suspend'
+  /admin/users:
+    $ref: './paths/admin.yaml#/paths/~1admin~1users'
+  /admin/payments:
+    $ref: './paths/admin.yaml#/paths/~1admin~1payments'
+  /admin/stats:
+    $ref: './paths/admin.yaml#/paths/~1admin~1stats'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Firebase ID Token
+      description: |
+        Firebase ID token obtained from Firebase Auth client SDK.
+        Verified server-side via `firebase-admin.auth().verifyIdToken()`.

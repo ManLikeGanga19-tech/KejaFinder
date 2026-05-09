@@ -1,0 +1,138 @@
+description: |
+  Property listing in locked state. Sensitive fields are null.
+  Returned for unauthenticated users or users who have not unlocked the listing.
+type: object
+properties:
+  id:
+    type: string
+  slug:
+    type: string
+    example: spacious-2br-kilimani-lp3xk
+  title:
+    type: string
+    example: Spacious 2BR Apartment in Kilimani
+  descriptionTeaser:
+    type: string
+    description: First ~200 characters of the full description
+  propertyType:
+    type: string
+    enum: [apartment, house, studio, penthouse, villa, townhouse, bedsitter]
+  priceKes:
+    type: integer
+    example: 45000
+  pricePeriod:
+    type: string
+    example: monthly
+  bedrooms:
+    type: integer
+    example: 2
+  bathrooms:
+    type: number
+    example: 1.5
+  areaSqft:
+    type: integer
+    nullable: true
+    example: 950
+  furnishing:
+    type: string
+    enum: [furnished, semi_furnished, unfurnished]
+  parking:
+    type: integer
+    example: 1
+  petsAllowed:
+    type: boolean
+  wifi:
+    type: boolean
+  amenities:
+    type: array
+    items:
+      type: string
+    example: [Swimming Pool, Gym, 24hr Security]
+  city:
+    type: string
+    example: Nairobi
+  area:
+    type: object
+    nullable: true
+    properties:
+      name:
+        type: string
+        example: Kilimani
+      slug:
+        type: string
+        example: kilimani
+      safetyRating:
+        type: integer
+        example: 78
+  isLocked:
+    type: boolean
+    example: true
+  isVerified:
+    type: boolean
+  isFeatured:
+    type: boolean
+  isUnlockedByMe:
+    type: boolean
+    description: false when unauthenticated
+  isSavedByMe:
+    type: boolean
+    description: false when unauthenticated
+  unlockPriceKes:
+    type: integer
+    example: 499
+  depositMonths:
+    type: integer
+    example: 2
+  availableFrom:
+    type: string
+    format: date
+    nullable: true
+  viewCount:
+    type: integer
+  unlockCount:
+    type: integer
+  photos:
+    type: array
+    items:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+        displayOrder:
+          type: integer
+        isCover:
+          type: boolean
+  agent:
+    type: object
+    description: Public agent info only — phone and email withheld
+    properties:
+      id:
+        type: string
+      displayName:
+        type: string
+      companyName:
+        type: string
+        nullable: true
+      logoUrl:
+        type: string
+        nullable: true
+      kycStatus:
+        type: string
+  publishedAt:
+    type: string
+    format: date-time
+    nullable: true
+  createdAt:
+    type: string
+    format: date-time
+  # Explicitly null in locked state
+  address:
+    type: 'null'
+    description: Null until unlocked
+  coordinates:
+    type: 'null'
+    description: Null until unlocked
+  caretaker:
+    type: 'null'
+    description: Null until unlocked

@@ -1,0 +1,18 @@
+{
+  "hosting": [
+    {
+      "target": "web",
+      "public": "apps/web/.next",
+      "cleanUrls": true,
+      "rewrites": [
+        { "source": "**", "destination": "/index.html" }
+      ]
+    }
+  ],
+  "apphosting": [
+    {
+      "backendId": "kejafinder-api",
+      "rootDir": "api"
+    }
+  ]
+}

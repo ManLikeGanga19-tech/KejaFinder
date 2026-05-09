@@ -1,0 +1,25 @@
+type: object
+properties:
+  id:
+    type: string
+  listingId:
+    type: string
+  listingTitle:
+    type: string
+    example: Spacious 2BR Apartment in Kilimani
+  listingSlug:
+    type: string
+    example: spacious-2br-kilimani-lp3xk
+  paymentType:
+    type: string
+    enum: [unlock, booking]
+    example: unlock
+  contacted:
+    type: boolean
+    example: false
+  agentNotes:
+    type: string
+    nullable: true
+  createdAt:
+    type: string
+    format: date-time

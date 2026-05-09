@@ -1,0 +1,446 @@
+paths:
+  /agents/register:
+    post:
+      tags: [agents]
+      summary: Register as an agent
+      description: |
+        Upgrades a consumer account to an `agent` role and creates an `agents` record.
+        KYC documents must be submitted separately via `POST /v1/agents/me/kyc-documents`.
+        Publishing listings is blocked until `kycStatus = approved`.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [displayName]
+              properties:
+                displayName:
+                  type: string
+                  minLength: 2
+                  maxLength: 80
+                  example: John Kamau Properties
+                companyName:
+                  type: string
+                  example: Kamau Real Estate Ltd
+                bio:
+                  type: string
+                  maxLength: 500
+                licenseNumber:
+                  type: string
+                nationalId:
+                  type: string
+      responses:
+        '201':
+          description: Agent registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      agent:
+                        $ref: '../components/schemas/Agent.yaml'
+        '409':
+          description: Already registered as agent
+          content:
+            application/json:
+              schema:
+                $ref: '../components/schemas/ErrorResponse.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+
+  /agents/me/dashboard:
+    get:
+      tags: [agents]
+      summary: Agent dashboard stats
+      description: |
+        Returns aggregate stats, recent active property cards, and last 5 leads.
+        Used for the agent dashboard home screen.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      agent:
+                        $ref: '../components/schemas/Agent.yaml'
+                      stats:
+                        type: object
+                        properties:
+                          activeListings:
+                            type: integer
+                            example: 12
+                          totalListings:
+                            type: integer
+                            example: 34
+                          totalViews:
+                            type: integer
+                            example: 4820
+                          totalUnlocks:
+                            type: integer
+                            example: 186
+                          totalLeads:
+                            type: integer
+                            example: 186
+                          leadsThisMonth:
+                            type: integer
+                            example: 24
+                      activeProperties:
+                        type: array
+                        maxItems: 10
+                        items:
+                          $ref: '../components/schemas/ListingLocked.yaml'
+                      recentLeads:
+                        type: array
+                        maxItems: 5
+                        items:
+                          $ref: '../components/schemas/Lead.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '404':
+          description: Agent profile not found
+          content:
+            application/json:
+              schema:
+                $ref: '../components/schemas/ErrorResponse.yaml'
+
+  /agents/me/listings:
+    get:
+      tags: [agents]
+      summary: Get agent's own listings
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, pending_review, active, inactive, rejected, archived]
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Page'
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Agent listings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      listings:
+                        type: array
+                        items:
+                          $ref: '../components/schemas/ListingLocked.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+    post:
+      tags: [agents]
+      summary: Create a new listing
+      description: |
+        Creates a new property listing. Blocked with `KYC_NOT_VERIFIED` 403 if
+        `agent.kycStatus !== 'approved'`. New listings enter `pending_review` status
+        and require admin approval before going live.
+
+        **Photos:** Upload photos first via `POST /v1/media/upload-url`, then pass
+        the Cloudinary `public_id` and `url` in the `photos` array.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, descriptionFull, propertyType, priceKes, bedrooms, bathrooms, address, coordinates]
+              properties:
+                title:
+                  type: string
+                  minLength: 5
+                  maxLength: 120
+                  example: Spacious 2BR Apartment in Kilimani
+                descriptionFull:
+                  type: string
+                  minLength: 20
+                propertyType:
+                  type: string
+                  enum: [apartment, house, studio, penthouse, villa, townhouse, bedsitter]
+                priceKes:
+                  type: integer
+                  minimum: 1
+                  example: 45000
+                pricePeriod:
+                  type: string
+                  default: monthly
+                bedrooms:
+                  type: integer
+                  minimum: 0
+                bathrooms:
+                  type: number
+                  minimum: 0
+                areaSqft:
+                  type: integer
+                furnishing:
+                  type: string
+                  enum: [furnished, semi_furnished, unfurnished]
+                parking:
+                  type: integer
+                  minimum: 0
+                petsAllowed:
+                  type: boolean
+                wifi:
+                  type: boolean
+                amenities:
+                  type: array
+                  items:
+                    type: string
+                city:
+                  type: string
+                  default: Nairobi
+                areaSlug:
+                  type: string
+                  example: kilimani
+                address:
+                  type: string
+                  description: Full address — revealed to users only after unlock
+                coordinates:
+                  type: object
+                  required: [lat, lng]
+                  properties:
+                    lat:
+                      type: number
+                      example: -1.2921
+                    lng:
+                      type: number
+                      example: 36.8219
+                availableFrom:
+                  type: string
+                  format: date
+                depositMonths:
+                  type: integer
+                  minimum: 0
+                  default: 2
+                unlockPriceKes:
+                  type: integer
+                  minimum: 0
+                  default: 499
+                photos:
+                  type: array
+                  items:
+                    type: object
+                    required: [cloudinaryPublicId, url, order]
+                    properties:
+                      cloudinaryPublicId:
+                        type: string
+                      url:
+                        type: string
+                        format: uri
+                      order:
+                        type: integer
+                        minimum: 0
+                        description: 0 = cover photo
+      responses:
+        '201':
+          description: Listing created — pending admin review
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      listing:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          slug:
+                            type: string
+                          status:
+                            type: string
+                            example: pending_review
+                          createdAt:
+                            type: string
+                            format: date-time
+                          moderationNote:
+                            type: string
+                            example: Your listing is under review and will be published within 24 hours.
+        '403':
+          description: KYC not verified
+          content:
+            application/json:
+              schema:
+                $ref: '../components/schemas/ErrorResponse.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+
+  /agents/me/listings/{id}:
+    patch:
+      tags: [agents]
+      summary: Update a listing
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                descriptionFull:
+                  type: string
+                priceKes:
+                  type: integer
+                bedrooms:
+                  type: integer
+                bathrooms:
+                  type: number
+                amenities:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Listing updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      listing:
+                        $ref: '../components/schemas/ListingLocked.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '404':
+          $ref: '../components/responses/404NotFound.yaml'
+    delete:
+      tags: [agents]
+      summary: Soft-delete a listing (status → archived)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Listing archived
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '404':
+          $ref: '../components/responses/404NotFound.yaml'
+
+  /agents/me/leads:
+    get:
+      tags: [agents]
+      summary: Get all leads across agent's listings
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: listingId
+          in: query
+          schema:
+            type: string
+          description: Filter leads by listing
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Page'
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Leads list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      leads:
+                        type: array
+                        items:
+                          $ref: '../components/schemas/Lead.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+
+  /agents/{id}/profile:
+    get:
+      tags: [agents]
+      summary: Public agent profile
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Public agent profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      agent:
+                        $ref: '../components/schemas/Agent.yaml'
+        '404':
+          $ref: '../components/responses/404NotFound.yaml'

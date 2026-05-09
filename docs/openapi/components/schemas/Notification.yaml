@@ -1,0 +1,30 @@
+type: object
+properties:
+  id:
+    type: string
+  type:
+    type: string
+    enum: [listing_unlocked, lead_received, payment_confirmed, payment_failed, listing_approved, listing_rejected, kyc_approved, kyc_rejected, system]
+    example: listing_unlocked
+  title:
+    type: string
+    example: Listing Unlocked!
+  body:
+    type: string
+    example: You can now view the full contact details and exact address.
+  data:
+    type: object
+    description: Contextual data for deep-linking (e.g. listingId, screen)
+    example:
+      listingId: a3f8c2d1-4e5b-6c7d-8e9f-0a1b2c3d4e5f
+      screen: ListingDetail
+  isRead:
+    type: boolean
+    example: false
+  readAt:
+    type: string
+    format: date-time
+    nullable: true
+  createdAt:
+    type: string
+    format: date-time

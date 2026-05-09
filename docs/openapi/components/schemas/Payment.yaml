@@ -1,0 +1,50 @@
+type: object
+properties:
+  id:
+    type: string
+    example: pay_01HXKP8A2B3C4D5E6F
+  paymentType:
+    type: string
+    enum: [unlock, booking, agent_subscription]
+    example: unlock
+  status:
+    type: string
+    enum: [pending, processing, completed, failed, cancelled, timeout, refunded]
+    example: completed
+  amountKes:
+    type: integer
+    example: 499
+  mpesaReceiptNumber:
+    type: string
+    nullable: true
+    example: QKA1B2C3D4
+  mpesaPhone:
+    type: string
+    example: "254712345678"
+  checkoutRequestId:
+    type: string
+    nullable: true
+    example: ws_CO_08052026_123456789012345
+  transactionDate:
+    type: string
+    format: date-time
+    nullable: true
+  pollUrl:
+    type: string
+    description: Present only on initiate response
+    example: /v1/payments/ws_CO_08052026_123456789012345/status
+  expiresAt:
+    type: string
+    format: date-time
+    nullable: true
+    description: STK Push expiry (5 minutes from initiation)
+  listingTitle:
+    type: string
+    nullable: true
+    description: Present in history endpoints
+  listingSlug:
+    type: string
+    nullable: true
+  createdAt:
+    type: string
+    format: date-time

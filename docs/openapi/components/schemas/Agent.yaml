@@ -1,0 +1,50 @@
+type: object
+properties:
+  id:
+    type: string
+    example: b2e9d3c4-5f6a-7b8c-9d0e-1f2a3b4c5d6e
+  userId:
+    type: string
+  displayName:
+    type: string
+    example: John Kamau Properties
+  companyName:
+    type: string
+    nullable: true
+    example: Kamau Real Estate Ltd
+  bio:
+    type: string
+    nullable: true
+  logoUrl:
+    type: string
+    format: uri
+    nullable: true
+  kycStatus:
+    type: string
+    enum: [not_submitted, pending_review, approved, rejected]
+    example: approved
+  kycVerifiedAt:
+    type: string
+    format: date-time
+    nullable: true
+  isActive:
+    type: boolean
+    example: true
+  subscriptionPlan:
+    type: string
+    enum: [starter, professional, enterprise]
+    example: professional
+  subscriptionExpiresAt:
+    type: string
+    format: date-time
+    nullable: true
+  totalLeads:
+    type: integer
+    example: 184
+  activeListingsCount:
+    type: integer
+    description: Present only on public profile endpoint
+    example: 12
+  createdAt:
+    type: string
+    format: date-time

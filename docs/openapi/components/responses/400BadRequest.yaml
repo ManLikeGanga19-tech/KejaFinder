@@ -1,0 +1,12 @@
+description: Validation error or bad request
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/ErrorResponse.yaml'
+    example:
+      success: false
+      error:
+        code: VALIDATION_ERROR
+        message: Request validation failed.
+        details:
+          phone: Must match pattern ^\+254[0-9]{9}$

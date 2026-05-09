@@ -1,0 +1,273 @@
+paths:
+  /listings:
+    get:
+      tags: [listings]
+      summary: Search listings
+      description: |
+        Full-featured property search. Supports geo radius (`lat`+`lng`+`radiusKm`) OR
+        bounding box (`swLat`+`swLng`+`neLat`+`neLng`) + filters.
+
+        **Auth optional:** Without JWT, `isUnlockedByMe` and `isSavedByMe` are always `false`.
+        `coordinates` is always `null` in list results — use `/map-pins` for approximate positions.
+      security: []
+      parameters:
+        - name: lat
+          in: query
+          schema:
+            type: number
+          description: Center latitude for radius search
+        - name: lng
+          in: query
+          schema:
+            type: number
+          description: Center longitude for radius search
+        - name: radiusKm
+          in: query
+          schema:
+            type: number
+            default: 5
+          description: Search radius in kilometres (used with lat/lng)
+        - name: minPrice
+          in: query
+          schema:
+            type: integer
+          description: Minimum monthly rent (KES)
+        - name: maxPrice
+          in: query
+          schema:
+            type: integer
+          description: Maximum monthly rent (KES)
+        - name: bedrooms
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+        - name: propertyType
+          in: query
+          schema:
+            type: string
+            enum: [apartment, house, studio, penthouse, villa, townhouse, bedsitter]
+        - name: verified
+          in: query
+          schema:
+            type: boolean
+          description: Filter to verified listings only
+        - name: areaSlug
+          in: query
+          schema:
+            type: string
+          description: Filter by area slug (e.g. `kilimani`)
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Free-text search on title and location
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [price_asc, price_desc, newest, distance, popularity]
+            default: newest
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Page'
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      listings:
+                        type: array
+                        items:
+                          $ref: '../components/schemas/ListingLocked.yaml'
+                      total:
+                        type: integer
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+
+  /listings/featured:
+    get:
+      tags: [listings]
+      summary: Featured listings carousel
+      description: Returns up to 10 featured listings for the home screen hero carousel.
+      security: []
+      responses:
+        '200':
+          description: Featured listings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      listings:
+                        type: array
+                        maxItems: 10
+                        items:
+                          $ref: '../components/schemas/ListingLocked.yaml'
+
+  /listings/map-pins:
+    get:
+      tags: [listings]
+      summary: Lightweight map pins
+      description: |
+        Returns minimal pin data for map rendering: id, approximate coordinates (jittered ±200m
+        for privacy), price, and property type. Exact coordinates are withheld until unlock.
+      security: []
+      parameters:
+        - name: swLat
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: swLng
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: neLat
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: neLng
+          in: query
+          required: true
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Map pin array
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      pins:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            approxLat:
+                              type: number
+                            approxLng:
+                              type: number
+                            priceKes:
+                              type: integer
+                            propertyType:
+                              type: string
+                            bedrooms:
+                              type: integer
+
+  /listings/{id}:
+    get:
+      tags: [listings]
+      summary: Get single listing (locked or unlocked)
+      description: |
+        Server decides locked vs unlocked based on the `unlocks` table for `(userId, listingId)`.
+
+        **Locked response** (`isLocked: true`): withholds `address`, `coordinates`,
+        `caretaker`, `agent.phone`, `agent.email`, full `descriptionFull`.
+
+        **Unlocked response** (`isLocked: false`): returns all fields including exact GPS
+        coordinates, full address, caretaker details, and agent contact.
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Listing detail (locked or unlocked variant)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      listing:
+                        oneOf:
+                          - $ref: '../components/schemas/ListingLocked.yaml'
+                          - $ref: '../components/schemas/ListingUnlocked.yaml'
+        '404':
+          $ref: '../components/responses/404NotFound.yaml'
+
+  /listings/{id}/save:
+    post:
+      tags: [listings]
+      summary: Save listing shortcut
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Listing saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+    delete:
+      tags: [listings]
+      summary: Unsave listing shortcut
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Listing unsaved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'

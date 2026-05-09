@@ -1,0 +1,100 @@
+paths:
+  /media/upload-url:
+    post:
+      tags: [media]
+      summary: Get Cloudinary signed upload URL
+      description: |
+        Returns a signed upload payload for direct browser/app-to-Cloudinary upload.
+        The client posts the file directly to Cloudinary using the returned `uploadUrl`
+        and `fields` — the API server never handles the binary file.
+
+        **Folders:**
+        - `listings` — property photos (agents only)
+        - `avatars` — user profile pictures
+        - `kyc` — KYC identity documents (agents only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [folder]
+              properties:
+                folder:
+                  type: string
+                  enum: [listings, avatars, kyc]
+                filename:
+                  type: string
+                  description: Optional original filename hint
+      responses:
+        '200':
+          description: Signed upload payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      uploadUrl:
+                        type: string
+                        format: uri
+                        example: https://api.cloudinary.com/v1_1/kejafinder/image/upload
+                      fields:
+                        type: object
+                        description: POST these fields along with the file to `uploadUrl`
+                        properties:
+                          api_key:
+                            type: string
+                          timestamp:
+                            type: string
+                          signature:
+                            type: string
+                          folder:
+                            type: string
+                            example: kejafinder/listings
+                          public_id:
+                            type: string
+                            example: kejafinder/listings/user123_1715165200000
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+
+  /media/{publicId}:
+    delete:
+      tags: [media]
+      summary: Delete a Cloudinary asset
+      description: |
+        Deletes the Cloudinary asset by `publicId`.
+        **Ownership check:** `publicId` must contain the authenticated user's ID.
+        Returns 403 if the asset belongs to another user.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Cloudinary public ID (URL-encoded if contains slashes)
+          example: kejafinder%2Flistings%2Fuser123_1715165200000
+      responses:
+        '200':
+          description: Asset deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '403':
+          $ref: '../components/responses/403Forbidden.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'

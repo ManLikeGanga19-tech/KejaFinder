@@ -1,0 +1,184 @@
+paths:
+  /users/me:
+    get:
+      tags: [users]
+      summary: Get current user profile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '../components/schemas/User.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+    patch:
+      tags: [users]
+      summary: Update current user profile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 80
+                avatarUrl:
+                  type: string
+                  format: uri
+                phone:
+                  type: string
+                  pattern: '^\+254[0-9]{9}$'
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '../components/schemas/User.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+
+  /users/me/saved-listings:
+    get:
+      tags: [users]
+      summary: Get saved listings
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Page'
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated saved listings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      listings:
+                        type: array
+                        items:
+                          $ref: '../components/schemas/ListingLocked.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+
+  /users/me/saved-listings/{listingId}:
+    post:
+      tags: [users]
+      summary: Save a listing
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: listingId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Listing saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+    delete:
+      tags: [users]
+      summary: Unsave a listing
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: listingId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Listing unsaved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+
+  /users/me/unlocks:
+    get:
+      tags: [users]
+      summary: Get unlock history
+      description: Returns all listings the user has paid to unlock, with full contact details.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Page'
+        - $ref: '../components/parameters/PaginationParams.yaml#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Unlock history with listing summaries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      unlocks:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            unlockedAt:
+                              type: string
+                              format: date-time
+                            listing:
+                              $ref: '../components/schemas/ListingUnlocked.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'

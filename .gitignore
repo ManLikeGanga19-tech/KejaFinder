@@ -1,0 +1,72 @@
+# Dependencies
+node_modules/
+.pnp.*
+.yarn/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Environment files (NEVER commit)
+.env
+.env.local
+.env.*.local
+api/.env
+!.env.example
+api/serviceAccountKey.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Next.js
+.next/
+out/
+
+# Expo
+.expo/
+.expo-shared/
+web-build/
+
+# Native build outputs
+ios/Pods/
+ios/build/
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# OpenAPI generated bundle
+docs/openapi/bundle.yaml
+
+# Local design assets — too large for git (use Figma/Drive instead)
+stitch_kejafinder_kenyan_housing_platform.zip
+wireframes/

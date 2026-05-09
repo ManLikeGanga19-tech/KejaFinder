@@ -1,0 +1,106 @@
+paths:
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: Register a new user
+      description: |
+        Verifies a Firebase ID token and creates a PostgreSQL user record.
+        The mobile app signs in via Firebase Auth (phone OTP or email/password) client-side,
+        then calls this endpoint to persist the user in the platform database.
+        Idempotent — calling again with the same Firebase UID returns the existing user.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [firebaseIdToken, name, phone]
+              properties:
+                firebaseIdToken:
+                  type: string
+                  description: ID token from Firebase Auth client SDK
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 80
+                  example: James Waweru
+                phone:
+                  type: string
+                  pattern: '^\+254[0-9]{9}$'
+                  description: E.164 format — Kenyan numbers only
+                  example: "+254712345678"
+                role:
+                  type: string
+                  enum: [consumer, agent]
+                  default: consumer
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '../components/schemas/User.yaml'
+        '200':
+          description: User already exists — returns existing record
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '../components/schemas/User.yaml'
+        '400':
+          $ref: '../components/responses/400BadRequest.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+
+  /auth/sync:
+    post:
+      tags: [auth]
+      summary: Sync Firebase session to platform
+      description: |
+        Verifies a Firebase ID token and returns the matching platform user.
+        Called on app launch when Firebase has an existing session.
+        Updates `last_login_at` on each call.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Session synced
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '../components/schemas/User.yaml'
+        '401':
+          $ref: '../components/responses/401Unauthorized.yaml'
+        '404':
+          description: Firebase UID not found in platform — user must register
+          content:
+            application/json:
+              schema:
+                $ref: '../components/schemas/ErrorResponse.yaml'

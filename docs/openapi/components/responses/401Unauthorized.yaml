@@ -1,0 +1,10 @@
+description: Missing or invalid Firebase ID token
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/ErrorResponse.yaml'
+    example:
+      success: false
+      error:
+        code: UNAUTHORIZED
+        message: A valid Bearer token is required.

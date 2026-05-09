@@ -1,0 +1,41 @@
+type: object
+properties:
+  id:
+    type: string
+    example: a3f8c2d1-4e5b-6c7d-8e9f-0a1b2c3d4e5f
+  firebaseUid:
+    type: string
+    example: oWkP2xNmQRZ8kfj7Y3bA
+  name:
+    type: string
+    example: James Waweru
+  email:
+    type: string
+    format: email
+    example: james@example.com
+  phone:
+    type: string
+    example: "+254712345678"
+  role:
+    type: string
+    enum: [consumer, agent, admin]
+    example: consumer
+  avatarUrl:
+    type: string
+    format: uri
+    nullable: true
+  emailVerified:
+    type: boolean
+    example: true
+  phoneVerified:
+    type: boolean
+    example: true
+  isActive:
+    type: boolean
+    example: true
+  createdAt:
+    type: string
+    format: date-time
+  updatedAt:
+    type: string
+    format: date-time
