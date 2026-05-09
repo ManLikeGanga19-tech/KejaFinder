@@ -1,10 +1,29 @@
 -- KejaFinder development seed data
--- Run with: psql $DATABASE_URL -f api/db/seed.sql
--- or via the helper:    npm --workspace api run db:seed
+-- Run with: tsx --env-file=.env scripts/seed.ts (recommended)
+-- or:       psql $DATABASE_URL -f api/db/seed.sql
 --
--- Idempotent: ON CONFLICT DO NOTHING on natural keys.
+-- Wipes seed-affected tables first so the seed is fully idempotent
+-- and uses stable IDs that subsequent inserts can reference.
 
 BEGIN;
+
+-- Wipe everything that the seed touches (cascades to dependents)
+TRUNCATE
+  saved_listings,
+  leads,
+  unlocks,
+  payments,
+  listing_photos,
+  listing_analytics,
+  listings,
+  area_amenities,
+  areas,
+  agent_kyc_documents,
+  agents,
+  push_tokens,
+  notifications,
+  users
+RESTART IDENTITY CASCADE;
 
 -- ── Demo agent user + agent profile ──────────────────────────────────────
 INSERT INTO users (id, firebase_uid, name, email, phone, role, email_verified, phone_verified, is_active)

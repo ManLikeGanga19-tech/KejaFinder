@@ -7,7 +7,6 @@ import {
   FlatList,
   ActivityIndicator,
   TextInput,
-  SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -65,12 +64,14 @@ export default function ExploreScreen() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <AppHeader />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        decelerationRate="normal"
+        overScrollMode="never"
       >
         {/* ── Hero title ── */}
         <View style={styles.hero}>
@@ -149,6 +150,10 @@ export default function ExploreScreen() {
               contentContainerStyle={styles.featuredList}
               ItemSeparatorComponent={() => <View style={{ width: Spacing[3] }} />}
               renderItem={({ item }) => <FeaturedCard {...item} />}
+              decelerationRate="fast"
+              snapToInterval={280 + Spacing[3]}
+              snapToAlignment="start"
+              disableIntervalMomentum
             />
           )}
         </View>
@@ -205,7 +210,7 @@ export default function ExploreScreen() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -285,9 +290,9 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weight.bold,
   },
 
-  // Section
+  // Section — generous breathing room per Urban Curator design
   section: {
-    marginBottom: Spacing[6],
+    marginBottom: Spacing[10],
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -300,9 +305,10 @@ const styles = StyleSheet.create({
     marginVertical: Spacing[8],
   },
 
-  // Featured carousel
+  // Featured carousel — vertical padding so shadows don't clip
   featuredList: {
     paddingHorizontal: Layout.screenPaddingH,
+    paddingVertical: Spacing[2],
   },
 
   // Bento grid

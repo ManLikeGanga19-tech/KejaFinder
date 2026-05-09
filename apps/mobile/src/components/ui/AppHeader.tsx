@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, StatusBar, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Layout } from '../../constants/theme';
 import { Text } from './Text';
@@ -29,8 +30,19 @@ export function AppHeader({
   trailing = 'avatar',
   trailingLabel,
 }: Props) {
+  const insets = useSafeAreaInsets();
+  // Pad below the OS status bar so the header never sits behind it.
+  // Use insets.top when reported (most modern devices); fall back to
+  // StatusBar.currentHeight on Android, then a sensible default.
+  const topPadding =
+    insets.top > 0
+      ? insets.top
+      : Platform.OS === 'android'
+        ? StatusBar.currentHeight ?? 24
+        : 8;
+
   return (
-    <View style={styles.bar}>
+    <View style={[styles.bar, { paddingTop: topPadding + Spacing[2] }]}>
       <View style={styles.left}>
         {showBack ? (
           <TouchableOpacity style={styles.iconBtn} onPress={onBack}>
@@ -64,7 +76,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Layout.screenPaddingH,
-    paddingVertical: Spacing[3],
+    paddingBottom: Spacing[3],
     backgroundColor: Colors.background,
   },
   left: {

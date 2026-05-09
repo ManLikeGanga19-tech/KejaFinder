@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Dimensions,
   ActivityIndicator,
-  FlatList,
   Linking,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -15,21 +14,29 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius, Shadows, Typography, Layout } from '../../src/constants/theme';
 import { Text } from '../../src/components/ui/Text';
-import { Button } from '../../src/components/ui/Button';
-import { Badge } from '../../src/components/ui/Badge';
+import { AppHeader } from '../../src/components/ui/AppHeader';
+import { Eyebrow } from '../../src/components/ui/Eyebrow';
+import { GlassCard } from '../../src/components/ui/GlassCard';
+import { ImageViewer } from '../../src/components/listing/ImageViewer';
 import { apiFetch } from '../../src/lib/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface Photo { id: string; url: string; isCover: boolean; }
-interface AreaPreview { slug: string; name: string; safetyRating: number; safetyLabel: string; costTier: string; rentRangeMin: number; rentRangeMax: number; mobilityScore: number; }
-interface AgentPublic { id: string; displayName: string; companyName?: string; logoUrl?: string; phone?: string; email?: string; }
+interface AreaPreview {
+  slug: string; name: string; safetyRating: number; safetyLabel: string;
+  costTier: string; rentRangeMin: number; rentRangeMax: number; mobilityScore: number;
+}
+interface AgentPublic {
+  id: string; displayName: string; companyName?: string;
+  logoUrl?: string; phone?: string; email?: string;
+}
 interface Listing {
   id: string; slug: string; title: string;
   descriptionTeaser: string; descriptionFull?: string;
   propertyType: string; priceKes: number; pricePeriod: string;
   bedrooms: number; bathrooms: number; areaSqft?: number;
-  furnishing: string; parking: number; petsAllowed: boolean; wifi: boolean;
+  furnishing: string; parking: number;
   amenities: string[]; city: string;
   address?: string; coordinates?: { lat: number; lng: number };
   caretakerName?: string; caretakerPhone?: string;
@@ -46,7 +53,8 @@ export default function ListingDetailScreen() {
   const insets = useSafeAreaInsets();
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
-  const [photoIndex, setPhotoIndex] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -65,318 +73,737 @@ export default function ListingDetailScreen() {
     } catch {}
   };
 
-  if (loading) return <View style={styles.loader}><ActivityIndicator color={Colors.primary} size="large" /></View>;
-  if (!listing) return (
-    <View style={styles.loader}>
-      <Text>Listing not found</Text>
-      <Button label="Go back" onPress={() => router.back()} style={{ marginTop: Spacing[4] }} />
-    </View>
-  );
+  if (loading) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator color={Colors.primary} size="large" />
+      </View>
+    );
+  }
+  if (!listing) {
+    return (
+      <View style={styles.loader}>
+        <Text variant="bodyMedium">Listing not found</Text>
+        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: Spacing[4] }}>
+          <Text variant="labelLarge" color={Colors.primary}>Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   const isUnlocked = listing.isUnlockedByMe;
+  const cover = listing.photos.find(p => p.isCover) ?? listing.photos[0];
+  const thumbnails = listing.photos.filter(p => p.id !== cover?.id).slice(0, 2);
+  const moreCount = Math.max(0, listing.photos.length - 1 - thumbnails.length);
+
+  // Open the fullscreen image viewer at the right starting photo
+  const openViewer = (photoId: string) => {
+    const idx = listing.photos.findIndex(p => p.id === photoId);
+    setViewerIndex(idx >= 0 ? idx : 0);
+    setViewerOpen(true);
+  };
 
   return (
     <View style={styles.root}>
-      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-        <View style={styles.photoCarousel}>
-          <FlatList
-            data={listing.photos}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={p => p.id}
-            onScroll={e => setPhotoIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH))}
-            scrollEventThrottle={16}
-            renderItem={({ item }) => <Image source={{ uri: item.url }} style={styles.photo} resizeMode="cover" />}
-            ListEmptyComponent={<View style={[styles.photo, styles.photoPlaceholder]} />}
-          />
-          <View style={[styles.navBar, { paddingTop: insets.top + 8 }]}>
-            <TouchableOpacity style={styles.navBtn} onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={20} color={Colors.onSurface} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navBtn} onPress={handleSave}>
-              <Ionicons
-                name={listing.isSavedByMe ? 'heart' : 'heart-outline'}
-                size={20}
-                color={listing.isSavedByMe ? Colors.error : Colors.onSurface}
-              />
-            </TouchableOpacity>
-          </View>
-          {listing.photos.length > 1 && (
-            <View style={styles.photoCounter}>
-              <Text style={styles.photoCountText}>{photoIndex + 1}/{listing.photos.length}</Text>
+      <AppHeader showBack onBack={() => router.back()} showMenu={false} trailing="none"
+        rightSlot={
+          <TouchableOpacity onPress={handleSave} style={styles.headerIconBtn}>
+            <Ionicons
+              name={listing.isSavedByMe ? 'heart' : 'heart-outline'}
+              size={22}
+              color={listing.isSavedByMe ? Colors.error : Colors.primary}
+            />
+          </TouchableOpacity>
+        }
+      />
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + Spacing[8] }]}
+        showsVerticalScrollIndicator={false}
+        decelerationRate="normal"
+        overScrollMode="never"
+      >
+        {/* ── Status pill ── */}
+        <View style={styles.statusRow}>
+          {isUnlocked ? (
+            <View style={[styles.statusPill, styles.statusUnlocked]}>
+              <Ionicons name="lock-open" size={12} color={Colors.white} />
+              <Text style={[styles.statusText, { color: Colors.white }]}>LISTING UNLOCKED</Text>
+            </View>
+          ) : listing.isVerified ? (
+            <View style={[styles.statusPill, styles.statusVerified]}>
+              <Ionicons name="shield-checkmark" size={12} color={Colors.secondary} />
+              <Text style={[styles.statusText, { color: Colors.secondary }]}>VERIFIED LISTING</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {/* ── Hero photo (tap to open viewer) ── */}
+        <TouchableOpacity
+          activeOpacity={0.92}
+          style={styles.heroWrap}
+          onPress={() => cover && openViewer(cover.id)}
+        >
+          {cover ? (
+            <Image source={{ uri: cover.url }} style={styles.heroImage} resizeMode="cover" />
+          ) : (
+            <View style={[styles.heroImage, styles.heroPlaceholder]} />
+          )}
+          {listing.photos.length > 0 && (
+            <View style={styles.heroExpandBtn}>
+              <Ionicons name="expand-outline" size={16} color={Colors.white} />
             </View>
           )}
-          <View style={styles.photoBadges}>
-            {listing.isFeatured && <Badge label="Featured" variant="featured" />}
-            {listing.isVerified && <Badge label="Verified" variant="verified" />}
-            {listing.isLocked && !isUnlocked && <Badge label="Locked" variant="locked" />}
-          </View>
-        </View>
+        </TouchableOpacity>
 
-        <View style={styles.content}>
-          <View style={styles.titleRow}>
-            <View style={styles.titleLeft}>
-              <Text variant="headlineMedium" style={styles.title}>{listing.title}</Text>
-              <Text variant="bodyMedium" color={Colors.onSurfaceVariant}>
-                {listing.area?.name ?? listing.city}
-                {listing.address ? ` · ${listing.address}` : ''}
-              </Text>
-            </View>
-            <View style={styles.priceBlock}>
-              <Text variant="price">KES {listing.priceKes.toLocaleString()}</Text>
-              <Text variant="labelSmall" color={Colors.onSurfaceVariant}>/month</Text>
-            </View>
-          </View>
-
-          <View style={styles.statsGrid}>
-            <StatBlock iconName="bed-outline" value={`${listing.bedrooms}`} label="Beds" />
-            <StatBlock iconName="water-outline" value={`${listing.bathrooms}`} label="Baths" />
-            {listing.areaSqft ? <StatBlock iconName="resize-outline" value={`${listing.areaSqft}`} label="sqft" /> : null}
-            <StatBlock iconName="car-outline" value={`${listing.parking}`} label="Parking" />
-          </View>
-
-          <Divider />
-
-          <View style={styles.section}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>About this property</Text>
-            <Text variant="bodyMedium" color={Colors.onSurfaceVariant} style={styles.description}>
-              {isUnlocked ? (listing.descriptionFull ?? listing.descriptionTeaser) : listing.descriptionTeaser}
-            </Text>
-            {listing.isLocked && !isUnlocked && (
-              <View style={styles.lockedHint}>
-                <Ionicons name="lock-closed" size={16} color={Colors.primary} style={{ marginRight: Spacing[2] }} />
-                <Text style={styles.lockedHintText}>
-                  Full description, exact address, and agent contacts revealed after unlock
-                </Text>
-              </View>
-            )}
-          </View>
-
-          <Divider />
-
-          <View style={styles.section}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>Listed by</Text>
-            <View style={styles.agentCard}>
-              <View style={styles.agentAvatar}>
-                {listing.agent.logoUrl ? (
-                  <Image source={{ uri: listing.agent.logoUrl }} style={styles.agentAvatarImg} />
-                ) : (
-                  <Text style={styles.agentAvatarInitial}>{listing.agent.displayName.charAt(0)}</Text>
-                )}
-              </View>
-              <View style={styles.agentInfo}>
-                <Text variant="titleSmall">{listing.agent.displayName}</Text>
-                {listing.agent.companyName && (
-                  <Text variant="bodySmall" color={Colors.onSurfaceVariant}>{listing.agent.companyName}</Text>
-                )}
-              </View>
-              {isUnlocked && listing.agent.phone && (
-                <TouchableOpacity style={styles.callBtn} onPress={() => Linking.openURL(`tel:${listing.agent.phone}`)}>
-                  <Ionicons name="call-outline" size={14} color={Colors.success} />
-                  <Text style={styles.callBtnText}>Call</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            {isUnlocked && listing.caretakerName && (
-              <View style={[styles.agentCard, { marginTop: Spacing[3] }]}>
-                <View style={styles.agentAvatar}>
-                  <Text style={styles.agentAvatarInitial}>{listing.caretakerName.charAt(0)}</Text>
-                </View>
-                <View style={styles.agentInfo}>
-                  <Text variant="titleSmall">{listing.caretakerName}</Text>
-                  <Text variant="bodySmall" color={Colors.onSurfaceVariant}>Caretaker</Text>
-                </View>
-                {listing.caretakerPhone && (
-                  <TouchableOpacity style={styles.callBtn} onPress={() => Linking.openURL(`tel:${listing.caretakerPhone}`)}>
-                    <Ionicons name="call-outline" size={14} color={Colors.success} />
-                    <Text style={styles.callBtnText}>Call</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-          </View>
-        </View>
-      </ScrollView>
-
-      <View style={[styles.ctaBar, { paddingBottom: insets.bottom + Spacing[4] }]}>
-        {isUnlocked ? (
-          <View style={styles.unlockedBar}>
-            <View style={styles.unlockedBadge}>
-              <Ionicons name="checkmark-circle" size={14} color={Colors.success} />
-              <Text style={styles.unlockedBadgeText}>Unlocked</Text>
-            </View>
-            {listing.agent.phone && (
-              <TouchableOpacity style={styles.ctaCallBtn} onPress={() => Linking.openURL(`tel:${listing.agent.phone}`)}>
-                <Ionicons name="call" size={16} color={Colors.white} />
-                <Text style={styles.ctaCallText}>Call agent</Text>
+        {/* ── Thumbnail strip (tap any to open at that index) ── */}
+        {listing.photos.length > 1 && (
+          <View style={styles.thumbStrip}>
+            {thumbnails.map(p => (
+              <TouchableOpacity
+                key={p.id}
+                activeOpacity={0.85}
+                style={styles.thumb}
+                onPress={() => openViewer(p.id)}
+              >
+                <Image source={{ uri: p.url }} style={styles.thumbImage} resizeMode="cover" />
+              </TouchableOpacity>
+            ))}
+            {moreCount > 0 && (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[styles.thumb, styles.moreThumb]}
+                onPress={() => {
+                  // Open viewer at the first photo not shown as a thumb
+                  const next = listing.photos.find(p => !thumbnails.find(t => t.id === p.id) && p.id !== cover?.id);
+                  if (next) openViewer(next.id);
+                }}
+              >
+                <Ionicons name="images-outline" size={20} color={Colors.white} />
+                <Text style={styles.moreThumbText}>+{moreCount} More{'\n'}Photos</Text>
               </TouchableOpacity>
             )}
           </View>
-        ) : (
-          <View style={styles.lockedBar}>
-            <View style={styles.lockedBarInfo}>
-              <Text variant="labelSmall" color={Colors.onSurfaceVariant}>Unlock full details</Text>
-              <Text variant="titleSmall">KES {listing.unlockPriceKes} via M-Pesa</Text>
+        )}
+
+        {/* ── Title + price ── */}
+        <View style={styles.titleBlock}>
+          <View style={styles.titleRow}>
+            <View style={{ flex: 1, paddingRight: Spacing[3] }}>
+              <Text variant="headlineLarge" style={styles.title} numberOfLines={3}>
+                {listing.title}
+              </Text>
+              <View style={styles.locationRow}>
+                <Ionicons name="location-outline" size={14} color={Colors.onSurfaceVariant} />
+                <Text variant="bodyMedium" color={Colors.onSurfaceVariant} numberOfLines={1}>
+                  {listing.area?.name ?? listing.city}{listing.address && isUnlocked ? `, ${listing.address}` : `, ${listing.city}`}
+                </Text>
+              </View>
             </View>
-            <TouchableOpacity style={styles.unlockBtn} activeOpacity={0.85} onPress={() => router.push(`/payment/${id}` as any)}>
-              <Ionicons name="lock-open" size={16} color={Colors.white} />
-              <Text style={styles.unlockBtnText}>Unlock now</Text>
-            </TouchableOpacity>
+            <View style={styles.priceBlock}>
+              <Text style={styles.price}>KES{'\n'}{listing.priceKes.toLocaleString()}</Text>
+              <Text style={styles.priceUnit}>PER MONTH</Text>
+            </View>
+          </View>
+
+          {/* Inline stats row */}
+          <View style={styles.statsInlineRow}>
+            <Stat icon="bed-outline" value={`${listing.bedrooms} ${listing.bedrooms === 1 ? 'Bed' : 'Beds'}`} />
+            <View style={styles.statDivider} />
+            <Stat icon="water-outline" value={`${listing.bathrooms} Baths`} />
+            {listing.areaSqft ? (
+              <>
+                <View style={styles.statDivider} />
+                <Stat icon="resize-outline" value={`${listing.areaSqft.toLocaleString()} sqft`} />
+              </>
+            ) : null}
+          </View>
+        </View>
+
+        {/* ── Area Intelligence Preview ── */}
+        {listing.area && (
+          <View style={styles.section}>
+            <View style={styles.sectionTitleRow}>
+              <Ionicons name="sparkles-outline" size={16} color={Colors.primary} />
+              <Text variant="titleMedium" style={{ color: Colors.primary }}>Area Intelligence Preview</Text>
+            </View>
+
+            <View style={styles.intelGrid}>
+              {/* Safety Index */}
+              <View style={styles.intelCard}>
+                <View style={styles.intelHeader}>
+                  <Text variant="labelSmall">Safety Index</Text>
+                  <View style={styles.intelTagSafety}>
+                    <Text style={[styles.intelTagText, { color: Colors.success }]}>HIGH SAFETY</Text>
+                  </View>
+                </View>
+                <Text variant="bodySmall" color={Colors.onSurfaceVariant}>
+                  Compared to Nairobi Average
+                </Text>
+                <View style={styles.progressTrack}>
+                  <View style={[styles.progressFill, { width: `${listing.area.safetyRating}%` }]} />
+                </View>
+                <View style={styles.progressLabels}>
+                  <Text variant="labelSmall" color={Colors.onSurfaceVariant}>NATIONAL</Text>
+                  <Text variant="labelSmall" color={Colors.success}>
+                    {listing.area.safetyRating}%
+                  </Text>
+                </View>
+              </View>
+
+              {/* Cost of Living */}
+              <View style={styles.intelCard}>
+                <View style={styles.intelHeader}>
+                  <Text variant="labelSmall">Cost of Living</Text>
+                  <View style={styles.intelTagPremium}>
+                    <Text style={[styles.intelTagText, { color: Colors.tertiaryContainer }]}>PREMIUM</Text>
+                  </View>
+                </View>
+                <Text variant="bodySmall" color={Colors.onSurfaceVariant}>
+                  Utility &amp; Service Estimates
+                </Text>
+                <View style={styles.intelStatRow}>
+                  <Text style={styles.intelStatValue}>
+                    {listing.area.costTier ?? '$$$'}
+                  </Text>
+                  {!isUnlocked && (
+                    <View style={styles.lockedTag}>
+                      <Ionicons name="lock-closed" size={10} color={Colors.onSurfaceVariant} />
+                      <Text style={styles.lockedTagText}>LOCKED</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            </View>
           </View>
         )}
+
+        {/* ── About this Property (glass card) ── */}
+        <View style={styles.section}>
+          <GlassCard style={styles.aboutCard}>
+            <View style={styles.aboutHeader}>
+              <View style={styles.aboutIconCircle}>
+                <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
+              </View>
+              <Text variant="titleMedium" style={styles.aboutTitle}>About this Property</Text>
+            </View>
+            <Text variant="bodyMedium" color={Colors.onSurfaceVariant} style={styles.descText}>
+              {isUnlocked ? (listing.descriptionFull ?? listing.descriptionTeaser) : listing.descriptionTeaser}
+            </Text>
+          </GlassCard>
+        </View>
+
+        {/* ── Locked banner OR Unlocked details ── */}
+        {!isUnlocked ? (
+          <LockedBanner
+            unlockPriceKes={listing.unlockPriceKes}
+            onUnlock={() => router.push(`/payment/${id}` as any)}
+          />
+        ) : (
+          <UnlockedSection listing={listing} />
+        )}
+      </ScrollView>
+
+      <ImageViewer
+        photos={listing.photos}
+        initialIndex={viewerIndex}
+        visible={viewerOpen}
+        onClose={() => setViewerOpen(false)}
+      />
+    </View>
+  );
+}
+
+// ── Components ────────────────────────────────────────────────────────────
+
+function Stat({ icon, value }: { icon: React.ComponentProps<typeof Ionicons>['name']; value: string }) {
+  return (
+    <View style={styles.statItem}>
+      <Ionicons name={icon} size={16} color={Colors.primary} />
+      <Text variant="bodyMedium" style={{ fontWeight: '600' }}>{value}</Text>
+    </View>
+  );
+}
+
+function LockedBanner({ unlockPriceKes, onUnlock }: { unlockPriceKes: number; onUnlock: () => void }) {
+  const benefits: { icon: React.ComponentProps<typeof Ionicons>['name']; text: string }[] = [
+    { icon: 'person-outline', text: 'Full Agent Contact & Direct Chat' },
+    { icon: 'shield-checkmark-outline', text: 'Verified Caretaker & Visit Report' },
+    { icon: 'location-outline', text: 'Exact Pin Location & Street View' },
+    { icon: 'analytics-outline', text: 'Historical Rent Trends (5 Years)' },
+  ];
+
+  return (
+    <View style={styles.lockedBanner}>
+      <View style={styles.lockedHeader}>
+        <View style={styles.lockedIconCircle}>
+          <Ionicons name="lock-closed" size={18} color={Colors.white} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text variant="titleMedium" style={{ color: Colors.white }}>Property Details Locked</Text>
+          <Text variant="bodySmall" style={{ color: 'rgba(255,255,255,0.75)' }}>
+            Unlock the full report to take the next step.
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.benefitList}>
+        {benefits.map(b => (
+          <View key={b.text} style={styles.benefitRow}>
+            <Ionicons name="checkmark-circle" size={18} color={Colors.primaryFixed} />
+            <Text variant="bodyMedium" style={{ color: Colors.white, flex: 1 }}>{b.text}</Text>
+          </View>
+        ))}
+      </View>
+
+      <TouchableOpacity style={styles.unlockBtn} activeOpacity={0.85} onPress={onUnlock}>
+        <Ionicons name="lock-open" size={16} color={Colors.primary} />
+        <Text style={styles.unlockBtnText}>Unlock Details (KES {unlockPriceKes} via M-Pesa)</Text>
+        <Ionicons name="arrow-forward" size={16} color={Colors.primary} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function UnlockedSection({ listing }: { listing: Listing }) {
+  return (
+    <>
+      {/* Caretaker card */}
+      {listing.caretakerName && (
+        <View style={[styles.section, styles.unlockedCard]}>
+          <Eyebrow color={Colors.success}>VERIFIED CARETAKER</Eyebrow>
+          <Text variant="titleLarge" style={{ marginTop: 4 }}>{listing.caretakerName}</Text>
+
+          {listing.caretakerPhone && (
+            <View style={styles.unlockedRow}>
+              <Text variant="bodyMedium" color={Colors.onSurfaceVariant}>Contact Number</Text>
+              <Text variant="titleSmall">{listing.caretakerPhone}</Text>
+            </View>
+          )}
+          <View style={styles.unlockedRow}>
+            <Text variant="bodyMedium" color={Colors.onSurfaceVariant}>Monthly Rent</Text>
+            <Text variant="titleSmall">KES {listing.priceKes.toLocaleString()}</Text>
+          </View>
+
+          {listing.caretakerPhone && (
+            <TouchableOpacity
+              style={styles.callCaretakerBtn}
+              activeOpacity={0.85}
+              onPress={() => Linking.openURL(`tel:${listing.caretakerPhone}`)}
+            >
+              <Ionicons name="call" size={16} color={Colors.white} />
+              <Text style={styles.callCaretakerText}>Call Caretaker</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Safety warning */}
+      <View style={styles.safetyWarning}>
+        <Ionicons name="warning-outline" size={20} color={Colors.tertiaryContainer} />
+        <View style={{ flex: 1 }}>
+          <Text variant="titleSmall" style={{ color: Colors.white }}>Safety First</Text>
+          <Text variant="bodySmall" style={{ color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>
+            Always visit the property in person before paying rent or deposits. We never recommend remote payments.
+          </Text>
+        </View>
+      </View>
+
+      {/* Detail rows */}
+      <View style={styles.section}>
+        <DetailRow icon="bed-outline" label="BEDROOMS" value={`${listing.bedrooms} ${listing.bedrooms === 1 ? 'Bedroom' : 'Bedrooms'}`} />
+        <DetailRow icon="water-outline" label="BATHROOMS" value={`${listing.bathrooms} Baths`} />
+        {listing.areaSqft ? <DetailRow icon="resize-outline" label="SIZE" value={`${listing.areaSqft.toLocaleString()} sqft`} /> : null}
+        {listing.parking > 0 ? <DetailRow icon="car-outline" label="PARKING" value={`${listing.parking} ${listing.parking === 1 ? 'Bay' : 'Bays'}`} /> : null}
+        {listing.amenities.length > 0 ? (
+          <DetailRow icon="checkmark-done-outline" label="INCLUDED" value={listing.amenities.slice(0, 3).join(', ')} />
+        ) : null}
+      </View>
+    </>
+  );
+}
+
+function DetailRow({ icon, label, value }: {
+  icon: React.ComponentProps<typeof Ionicons>['name']; label: string; value: string;
+}) {
+  return (
+    <View style={styles.detailRow}>
+      <View style={styles.detailIcon}>
+        <Ionicons name={icon} size={18} color={Colors.primary} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text variant="labelSmall" color={Colors.onSurfaceVariant}>{label}</Text>
+        <Text variant="bodyLarge" style={{ marginTop: 2, fontWeight: '600' }}>{value}</Text>
       </View>
     </View>
   );
 }
 
-function StatBlock({ iconName, value, label }: { iconName: React.ComponentProps<typeof Ionicons>['name']; value: string; label: string }) {
-  return (
-    <View style={styles.statBlock}>
-      <Ionicons name={iconName} size={20} color={Colors.primary} style={{ marginBottom: 4 }} />
-      <Text variant="titleMedium">{value}</Text>
-      <Text variant="labelSmall" color={Colors.onSurfaceVariant}>{label}</Text>
-    </View>
-  );
-}
-
-function Divider() { return <View style={styles.divider} />; }
+// ── Styles ────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
   scroll: { flex: 1 },
-  photoCarousel: { height: 300, position: 'relative' },
-  photo: { width: SCREEN_WIDTH, height: 300 },
-  photoPlaceholder: { backgroundColor: Colors.surfaceContainerHigh },
-  navBar: {
-    position: 'absolute', top: 0, left: 0, right: 0,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing[4],
+  scrollContent: { gap: Spacing[5] },
+
+  headerIconBtn: {
+    width: 36, height: 36, alignItems: 'center', justifyContent: 'center',
   },
-  navBtn: {
-    width: 40, height: 40, borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    alignItems: 'center', justifyContent: 'center',
-    ...Shadows.sm,
+
+  // Status pill
+  statusRow: {
+    paddingHorizontal: Layout.screenPaddingH,
   },
-  navIcon: { fontSize: 18 },
-  photoCounter: {
-    position: 'absolute', bottom: Spacing[3], right: Spacing[3],
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: Spacing[3], paddingVertical: 4,
+  statusPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: 6,
     borderRadius: BorderRadius.full,
   },
-  photoCountText: {
-    fontFamily: Typography.fontBody, fontSize: Typography.size.xs,
-    color: Colors.white, fontWeight: Typography.weight.bold,
+  statusVerified: { backgroundColor: Colors.secondaryFixed },
+  statusUnlocked: { backgroundColor: Colors.success },
+  statusText: {
+    fontFamily: Typography.fontBody,
+    fontSize: 11,
+    fontWeight: Typography.weight.bold,
+    letterSpacing: 1.2,
   },
-  photoBadges: {
-    position: 'absolute', bottom: Spacing[3], left: Spacing[3],
-    flexDirection: 'row', gap: Spacing[2],
+
+  // Hero
+  heroWrap: {
+    marginHorizontal: Layout.screenPaddingH,
+    borderRadius: BorderRadius.card,
+    overflow: 'hidden',
+    position: 'relative',
+    ...Shadows.md,
   },
-  content: { padding: Layout.screenPaddingH, paddingTop: Spacing[5] },
-  titleRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
-    marginBottom: Spacing[5], gap: Spacing[3],
+  heroImage: {
+    width: '100%',
+    height: 260,
   },
-  titleLeft: { flex: 1, gap: Spacing[1] },
-  title: { letterSpacing: -0.5 },
-  priceBlock: { alignItems: 'flex-end' },
-  statsGrid: {
-    flexDirection: 'row', justifyContent: 'space-around',
-    backgroundColor: Colors.surfaceContainerLow,
-    borderRadius: BorderRadius.xl,
-    paddingVertical: Spacing[4],
-    marginBottom: Spacing[5],
+  heroPlaceholder: { backgroundColor: Colors.surfaceContainerHigh },
+  heroExpandBtn: {
+    position: 'absolute',
+    top: Spacing[3],
+    right: Spacing[3],
+    width: 32, height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  statBlock: { alignItems: 'center', gap: 2 },
-  statIcon: { fontSize: 20, marginBottom: 2 },
-  divider: { height: 1, backgroundColor: Colors.outlineVariant, marginVertical: Spacing[5] },
-  section: { gap: Spacing[3] },
-  sectionTitle: { letterSpacing: -0.2 },
-  description: { lineHeight: 22 },
-  lockedHint: {
-    backgroundColor: Colors.primaryFixed,
+
+  // Thumbnails
+  thumbStrip: {
+    flexDirection: 'row',
+    paddingHorizontal: Layout.screenPaddingH,
+    gap: Spacing[3],
+  },
+  thumb: {
+    flex: 1,
+    height: 80,
     borderRadius: BorderRadius.lg,
-    padding: Spacing[3], marginTop: Spacing[2],
-    flexDirection: 'row', alignItems: 'center',
-  },
-  lockedHintText: {
-    fontFamily: Typography.fontBody, fontSize: Typography.size.sm,
-    color: Colors.primary,
-  },
-  agentCard: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.surfaceContainerLow,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing[4], gap: Spacing[3],
-  },
-  agentAvatar: {
-    width: 48, height: 48, borderRadius: BorderRadius.full,
-    backgroundColor: Colors.primaryFixed,
-    alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden',
   },
-  agentAvatarImg: { width: '100%', height: '100%' },
-  agentAvatarInitial: {
-    fontFamily: Typography.fontHeadline, fontSize: Typography.size.xl,
-    fontWeight: Typography.weight.bold, color: Colors.primary,
+  thumbImage: {
+    width: '100%',
+    height: '100%',
   },
-  agentInfo: { flex: 1, gap: 2 },
-  callBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: Colors.successContainer,
-    paddingHorizontal: Spacing[3], paddingVertical: Spacing[2],
-    borderRadius: BorderRadius.full,
-  },
-  callBtnText: {
-    fontFamily: Typography.fontBody, fontSize: Typography.size.sm,
-    fontWeight: Typography.weight.bold, color: Colors.success,
-  },
-  ctaBar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: Colors.surfaceContainerLowest,
-    paddingTop: Spacing[4],
-    paddingHorizontal: Layout.screenPaddingH,
-    borderTopLeftRadius: BorderRadius['2xl'],
-    borderTopRightRadius: BorderRadius['2xl'],
-    ...Shadows.lg, shadowOffset: { width: 0, height: -4 },
-  },
-  lockedBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing[3] },
-  lockedBarInfo: { flex: 1, gap: 2 },
-  unlockBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing[2],
+  moreThumb: {
     backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing[6],
-    paddingVertical: Spacing[4],
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  moreThumbText: {
+    fontFamily: Typography.fontBody,
+    fontSize: 11,
+    fontWeight: Typography.weight.bold,
+    color: Colors.white,
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+
+  // Title + price
+  titleBlock: {
+    paddingHorizontal: Layout.screenPaddingH,
+    gap: Spacing[3],
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  title: {
+    color: Colors.primary,
+    letterSpacing: -0.8,
+    lineHeight: 36,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: Spacing[1],
+  },
+  priceBlock: {
+    alignItems: 'flex-end',
+  },
+  price: {
+    fontFamily: Typography.fontHeadline,
+    fontSize: Typography.size['2xl'],
+    fontWeight: Typography.weight.extrabold,
+    color: Colors.primary,
+    letterSpacing: -0.5,
+    textAlign: 'right',
+    lineHeight: 28,
+  },
+  priceUnit: {
+    fontFamily: Typography.fontBody,
+    fontSize: 10,
+    fontWeight: Typography.weight.bold,
+    color: Colors.onSurfaceVariant,
+    letterSpacing: 1.5,
+    marginTop: 2,
+  },
+
+  // Stats inline
+  statsInlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[4],
+    marginTop: Spacing[2],
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: Colors.outlineVariant,
+  },
+
+  // Sections
+  section: {
+    paddingHorizontal: Layout.screenPaddingH,
+    gap: Spacing[3],
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  // Area intelligence cards
+  intelGrid: {
+    gap: Spacing[3],
+  },
+  intelCard: {
+    backgroundColor: Colors.surfaceContainerLowest,
     borderRadius: BorderRadius.xl,
+    padding: Spacing[4],
+    gap: Spacing[2],
+    ...Shadows.sm,
+  },
+  intelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  intelTagSafety: {
+    backgroundColor: Colors.successContainer,
+    paddingHorizontal: Spacing[2],
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+  },
+  intelTagPremium: {
+    backgroundColor: Colors.tertiaryFixed,
+    paddingHorizontal: Spacing[2],
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+  },
+  intelTagText: {
+    fontFamily: Typography.fontBody,
+    fontSize: 9,
+    fontWeight: Typography.weight.extrabold,
+    letterSpacing: 1.2,
+  },
+  intelStatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing[1],
+  },
+  intelStatValue: {
+    fontFamily: Typography.fontHeadline,
+    fontSize: Typography.size['2xl'],
+    fontWeight: Typography.weight.extrabold,
+    color: Colors.tertiaryContainer,
+    letterSpacing: -0.5,
+  },
+  lockedTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.surfaceContainerHigh,
+    paddingHorizontal: Spacing[2],
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+  },
+  lockedTagText: {
+    fontFamily: Typography.fontBody,
+    fontSize: 9,
+    fontWeight: Typography.weight.bold,
+    color: Colors.onSurfaceVariant,
+    letterSpacing: 1,
+  },
+
+  // Progress bar
+  progressTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.surfaceContainerHigh,
+    overflow: 'hidden',
+    marginTop: Spacing[1],
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: Colors.success,
+    borderRadius: 3,
+  },
+  progressLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 2,
+  },
+
+  // About (glass card)
+  aboutCard: {
+    marginHorizontal: 0,
+  },
+  aboutHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[3],
+    marginBottom: Spacing[3],
+  },
+  aboutIconCircle: {
+    width: 32, height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primaryFixed,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  aboutTitle: {
+    color: Colors.primary,
+  },
+  descText: {
+    lineHeight: 22,
+  },
+
+  // Locked banner
+  lockedBanner: {
+    marginHorizontal: Layout.screenPaddingH,
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius['2xl'],
+    padding: Spacing[5],
+    gap: Spacing[4],
     ...Shadows.primary,
   },
-  unlockBtnText: {
-    fontFamily: Typography.fontBody, fontSize: Typography.size.base,
-    fontWeight: Typography.weight.bold, color: Colors.white,
+  lockedHeader: {
+    flexDirection: 'row',
+    gap: Spacing[3],
+    alignItems: 'flex-start',
   },
-  unlockedBar: { flexDirection: 'row', alignItems: 'center', gap: Spacing[3] },
-  unlockedBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: Colors.successContainer,
-    paddingHorizontal: Spacing[3], paddingVertical: Spacing[2],
-    borderRadius: BorderRadius.full,
+  lockedIconCircle: {
+    width: 36, height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  unlockedBadgeText: {
-    fontFamily: Typography.fontBody, fontSize: Typography.size.sm,
-    fontWeight: Typography.weight.bold, color: Colors.success,
+  benefitList: {
+    gap: Spacing[3],
   },
-  ctaCallBtn: {
-    flex: 1, flexDirection: 'row', gap: Spacing[2],
-    backgroundColor: Colors.primary,
+  benefitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[3],
+  },
+  unlockBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing[2],
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing[5],
     paddingVertical: Spacing[4],
-    borderRadius: BorderRadius.xl,
-    alignItems: 'center', justifyContent: 'center', ...Shadows.primary,
+    borderRadius: BorderRadius.full,
+    marginTop: Spacing[2],
   },
-  ctaCallText: {
-    fontFamily: Typography.fontBody, fontSize: Typography.size.sm,
-    fontWeight: Typography.weight.bold, color: Colors.white,
+  unlockBtnText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.size.sm,
+    fontWeight: Typography.weight.bold,
+    color: Colors.primary,
+  },
+
+  // Unlocked
+  unlockedCard: {
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing[5],
+    marginHorizontal: Layout.screenPaddingH,
+    ...Shadows.sm,
+  },
+  unlockedRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing[2],
+  },
+  callCaretakerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing[2],
+    backgroundColor: Colors.success,
+    paddingVertical: Spacing[4],
+    borderRadius: BorderRadius.full,
+    marginTop: Spacing[3],
+    ...Shadows.md,
+  },
+  callCaretakerText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.size.base,
+    fontWeight: Typography.weight.bold,
+    color: Colors.white,
+  },
+  safetyWarning: {
+    marginHorizontal: Layout.screenPaddingH,
+    flexDirection: 'row',
+    gap: Spacing[3],
+    backgroundColor: Colors.tertiary,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing[4],
+  },
+
+  // Detail rows
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[3],
+    paddingVertical: Spacing[3],
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.outlineVariant,
+  },
+  detailIcon: {
+    width: 36, height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primaryFixed,
+    alignItems: 'center', justifyContent: 'center',
   },
 });
