@@ -13,8 +13,8 @@
     "lint": "eslint src --ext .ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:unit": "vitest run --dir test/unit",
-    "test:integration": "vitest run --dir test/integration",
+    "test:unit": "vitest run test/unit",
+    "test:integration": "vitest run test/integration",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {

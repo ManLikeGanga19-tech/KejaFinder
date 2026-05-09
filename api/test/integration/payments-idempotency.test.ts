@@ -8,7 +8,7 @@ let sql: Sql;
 beforeAll(async () => {
   const db = await startTestDb();
   sql = db.sql;
-}, 180_000);
+}, 300_000);
 
 afterAll(async () => {
   await stopTestDb();

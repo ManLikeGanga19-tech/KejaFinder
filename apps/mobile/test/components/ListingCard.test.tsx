@@ -1,11 +1,13 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react-native';
-import { ListingCard } from '../../src/components/listing/ListingCard';
 
-const pushMock = jest.fn();
+const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: pushMock }),
+  useRouter: () => ({ push: mockPush }),
 }));
+
+// Import AFTER jest.mock
+import { ListingCard } from '../../src/components/listing/ListingCard';
 
 const baseProps = {
   id: 'listing-1',
@@ -24,7 +26,7 @@ const baseProps = {
   photos: [],
 };
 
-beforeEach(() => { pushMock.mockReset(); });
+beforeEach(() => { mockPush.mockReset(); });
 
 describe('<ListingCard />', () => {
   it('renders title, location, price', () => {
@@ -59,7 +61,7 @@ describe('<ListingCard />', () => {
   it('navigates to /listing/:id when tapped', () => {
     render(<ListingCard {...baseProps} />);
     fireEvent.press(screen.getByText('2BR Apartment in Kilimani'));
-    expect(pushMock).toHaveBeenCalledWith('/listing/listing-1');
+    expect(mockPush).toHaveBeenCalledWith('/listing/listing-1');
   });
 
   it('falls back to city when no area is provided', () => {
